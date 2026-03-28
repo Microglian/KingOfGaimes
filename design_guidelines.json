@@ -1,0 +1,110 @@
+{
+  "theme": "dark",
+  "archetype": "7 (Electric & Neon) + 5 (Jewel & Luxury) Hybrid",
+  "design_philosophy": "A magical yet highly technical 'Duel Disk' control center. Deep abyssal blues and oceanic dark tones create an infinite void, allowing the vibrant, glossy card canvas to be the undeniable focal point. The UI feels like a high-end web3 gaming dashboard with technical precision, satisfying the user's request for blues, teals, and aquas while avoiding cheap generic defaults.",
+  "colors": {
+    "background": {
+      "base": "#040A10",
+      "surface": "#08131F",
+      "surface_elevated": "#0D1D2E",
+      "overlay": "rgba(4, 10, 16, 0.8)"
+    },
+    "primary": {
+      "DEFAULT": "#00E5FF",
+      "hover": "#4DEDFF",
+      "active": "#00B6CC",
+      "foreground": "#000000"
+    },
+    "secondary": {
+      "DEFAULT": "#0055FF",
+      "hover": "#3377FF",
+      "foreground": "#FFFFFF"
+    },
+    "accent": {
+      "teal_aqua": "#00C9A7",
+      "glow": "rgba(0, 229, 255, 0.3)"
+    },
+    "neutral": {
+      "border": "#162A3F",
+      "text_main": "#E2E8F0",
+      "text_muted": "#8BA0B2"
+    }
+  },
+  "typography": {
+    "fonts": {
+      "heading": "Outfit, sans-serif",
+      "body": "Manrope, sans-serif",
+      "mono": "JetBrains Mono, monospace"
+    },
+    "scale": {
+      "h1": "text-4xl tracking-tighter font-black",
+      "h2": "text-2xl tracking-tight font-bold",
+      "h3": "text-xl font-semibold",
+      "body": "text-sm leading-relaxed",
+      "labels": "text-xs tracking-[0.2em] uppercase font-bold text-[#8BA0B2]",
+      "mono_stats": "text-sm font-mono tracking-tighter"
+    }
+  },
+  "layout": {
+    "grid_system": "Control Room Grid (12 columns). The Left Form Panel (Card Editor) spans 4 columns. The Right Preview Canvas spans 8 columns. The form is highly dense for functionality, while the preview panel has generous breathing room.",
+    "spacing": {
+      "container_padding": "p-6 md:p-8",
+      "section_gap": "gap-8",
+      "form_gap": "gap-4"
+    },
+    "surfaces": {
+      "form_panel": "Solid #08131F background with 1px border (#162A3F). Use 'Technical Grid' layout aesthetics (sharp edges, max rounded-md).",
+      "preview_panel": "Dot matrix or subtle grid pattern (#0D1D2E dots on #040A10) to feel like an engineering canvas. The rendered card must have a massive ambient drop-shadow: shadow-[0_20px_60px_rgba(0,85,255,0.15)].",
+      "modals": "Glassmorphism: backdrop-blur-xl bg-[#08131F]/80 with 1px border-t border-[#00E5FF]/20."
+    }
+  },
+  "components": {
+    "buttons": "Primary CTAs: #00E5FF background, black text, font-bold, tracking-wide. Hover adds an inner 1px white border and an outer neon glow. Secondary: Transparent with #162A3F border, hovering to #0D1D2E.",
+    "inputs": "Shadcn-based. Dark background (#0D1D2E), subtle border (#162A3F). Focus state: ring-1 ring-[#00E5FF] focus:border-[#00E5FF].",
+    "canvas": "HTML5 Canvas element strictly constrained to the Yu-Gi-Oh card aspect ratio (approx 59x86 / 400x580). Renders in real-time.",
+    "tabs": "Minimalist underline style. Active tab gets a glowing #00E5FF border-bottom and text color change.",
+    "cards_gallery": "Bento-style grid for saved cards. Hovering on a card lifts it (-translate-y-2) and adds a bright cyan ambient shadow."
+  },
+  "motion_and_interactions": {
+    "hover_states": "Interactive elements shift to brighter cyan/aqua hues with subtle text-shadows.",
+    "transitions": "transition-all duration-200 ease-out",
+    "canvas_update": "Instant, zero-latency canvas re-renders when form fields change."
+  },
+  "icons_and_assets": {
+    "icon_library": "@phosphor-icons/react",
+    "install_command": "yarn add @phosphor-icons/react",
+    "image_urls": [
+      {
+        "url": "https://images.pexels.com/photos/29223698/pexels-photo-29223698.png?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "category": "placeholder_card_art_monster",
+        "description": "Dragon surrounded by dramatic orange fire-like light trails. Use as default card art for a monster card."
+      },
+      {
+        "url": "https://images.pexels.com/photos/3151984/pexels-photo-3151984.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "category": "placeholder_card_art_spell",
+        "description": "Magical scene with a glowing box, potions. Use as default card art for a spell card."
+      },
+      {
+        "url": "https://images.pexels.com/photos/35049220/pexels-photo-35049220.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "category": "placeholder_card_art_trap",
+        "description": "Mysterious woman holding a glowing orb. Use as default card art for a trap or caster card."
+      }
+    ]
+  },
+  "accessibility_and_testing": {
+    "contrast": "Ensure white/light gray text over abyssal blue backgrounds meets >4.5:1 ratio.",
+    "test_ids": "Include data-testid on form inputs (e.g., data-testid='card-name-input'), canvas (data-testid='card-preview-canvas'), download buttons, and gallery items."
+  },
+  "instructions_to_main_agent": [
+    "Set up a dark theme UI combining Archetype 7 (Neon) and 5 (Jewel). Base background is very dark abyssal blue.",
+    "Create a 'Control Room' layout: A fixed/scrollable left sidebar for the Form Panel (Card data, stats, image upload, text inputs), and a large right area for the live Canvas Preview.",
+    "Use standard Shadcn components for forms but heavily style them with technical/grid aesthetics (sharp edges, cyan focus rings).",
+    "Implement an HTML5 Canvas for the card renderer to ensure precise layering of frame, image, and text.",
+    "CRITICAL CANVAS RULE: For the Canvas card renderer ONLY, you MUST use accurate Yu-Gi-Oh card frame colors (e.g., Purple for Fusion, Teal for Spells, Black for Xyz, White for Synchro, Blue for Ritual, Orange for Effect, Yellow for Normal). The 'Anti-Purple/Teal' UI rule does NOT apply to the historical card frame colors inside the canvas, only to the surrounding web UI.",
+    "Implement an image upload/position module that allows users to place the chosen image URL into the canvas image box with X/Y offsets and zoom.",
+    "Use the provided image_urls as placeholder images when the user first opens the app.",
+    "Ensure the export feature outputs high-quality PNGs directly from the HTML5 canvas using toDataURL.",
+    "Include a 'Collection' tab/modal that displays previously saved cards in a grid, loading from the DB.",
+    "Integrate a robust Search & Filter component above the card collection grid with partial text matching and tag (Attribute/Type) filtering."
+  ]
+}
