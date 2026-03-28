@@ -5,38 +5,31 @@
 - Backend: FastAPI + Motor (async MongoDB)
 - Database: MongoDB, No Authentication
 
-## What's Been Implemented
+## Implemented Features
 
-### MVP (Initial)
-- Full CRUD API, search with multi-param filters, import/export
-- Card Editor: form panel + live canvas preview
-- Canvas renderer with type-specific frames, attributes, level/rank/link indicators
+### MVP
+- Full CRUD API, search, import/export, image proxy
+- Card Editor with form + live canvas preview
+- Canvas renderer: type-specific frames, attributes, level/rank/link indicators
 - Collection page with search/filter/sort/delete
 - Dark theme (blues/teals/aquas)
 
 ### Iteration 1 - Bug Fixes
-- Fixed image loading, PNG/JSON exports, auto-render toggle
-- Square art box, larger description font, collection filters
+- Image loading, PNG/JSON exports, auto-render toggle, collection filters
 
-### Iteration 2 - Feature Update
-- Save as New button for card duplication workflow
-- Card layout matching real Yu-Gi-Oh reference (wider-than-tall art box, cream desc box with type line + text + ATK/DEF + separator)
-- Image memory management: local uploads stay in memory, only filename stored in DB
-- "Save image data" checkbox for optional full data persistence
-- Manual font size adjuster with Auto fallback
-- Thumbnail generation for fast collection display
-- Re-upload hint for file-referenced images
-- Per-card PNG/JSON export in collection
-- Proper star rendering (red-backed gold stars)
-- Robust download mechanism (synchronous toDataURL, Blob + createObjectURL)
+### Iteration 2 - Features
+- Save as New, card layout matching reference, image memory management,
+  font size adjuster, thumbnails, per-card export, re-upload hints
 
-## Prioritized Backlog
+### Iteration 3 - Performance & Print
+- Fast collection loading (imageUrl stripped from list queries, 25KB/139ms for 11 cards)
+- Searchable archetype/set code filter dropdowns (meta API endpoints)
+- High-res PNG export (Standard/2x/3x print-ready)
+- Larger collection thumbnails (168x245)
+
+## Backlog
 ### P1
-- High-res export toggle (3x scale for print)
 - Drag-to-reposition image on canvas
 - Pagination for large collections
-
 ### P2
-- Batch operations (delete, export)
-- Card template presets
-- Undo/redo
+- Batch operations, card templates, undo/redo
