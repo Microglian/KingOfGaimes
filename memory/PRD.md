@@ -9,51 +9,35 @@ Web-based application for creating, editing, storing, searching, and exporting c
 - **Database**: MongoDB
 - **No Authentication** - Open access
 
-## User Personas
-- Yu-Gi-Oh card game fans wanting to create custom cards
-- Card game designers prototyping card ideas
-- Artists creating card art mockups
-
-## Core Requirements
-- Full card creation with all Yu-Gi-Oh card types (Normal/Effect/Ritual/Fusion/Synchro/Xyz/Link monsters, Spells, Traps)
-- Canvas-based live card rendering with accurate layout
-- Save/load cards from MongoDB
-- Search & filter with multi-parameter queries
-- Export as PNG, JSON import/export
-- Image URL/file upload with zoom/offset controls
-
 ## What's Been Implemented (March 2026)
+### MVP (Initial)
 - Full backend API: CRUD, search, import/export, image proxy
-- Card Editor page with form panel + live canvas preview
-- Card renderer with frame colors, attribute icons, level/rank/link stars, type line, description, ATK/DEF
-- Collection page with search, filters, sort, delete
+- Card Editor with form panel + live canvas preview
+- Card renderer with type-specific frame colors, attribute icons, level/rank/link, ATK/DEF
+- Collection page with search, delete, Export All, Import
 - JSON import/export, PNG export
 - Dark theme (blues/teals/aquas)
-- Auto-render with inactivity timer
-- Conditional fields (type-specific inputs)
-- Symbol insertion for card text
-- Tag inputs for type line and archetypes
-- Overlay effects (foil shaders)
-- MongoDB indexes for efficient search
+
+### Bug Fix Iteration 1
+- Fixed image loading from URLs (proxy-first for CORS)
+- Fixed PNG/JSON export (document.body.appendChild pattern)
+- Fixed auto-render toggle (CardCanvas only depends on renderTrigger, not card)
+- Made art box square (280x280)
+- Increased description font size (14px base) with proper auto-scaling/re-wrapping
+- Added archetype display on card canvas
+- Added collection filters: archetype, set code, type line
+- Added per-card PNG/JSON export in collection
+- Fixed Export All download
+- Made Import button visible via flex-wrap
 
 ## Prioritized Backlog
-### P0 (Critical)
-- None remaining
-
-### P1 (High Priority)
-- High-resolution export option (2x/3x scale)
-- Card image drag-to-reposition (mouse drag on canvas)
-- Better card art loading with proxy fallback
-
-### P2 (Nice to Have)
-- Card duplication feature
+### P1
+- High-resolution export toggle (2x/3x)
+- Card image drag-to-reposition on canvas
 - Pagination for large collections
-- Batch delete operations
+
+### P2
+- Card duplication
+- Batch delete
 - Card template presets
 - Print-ready export (300 DPI)
-
-## Next Tasks
-- Add high-resolution export toggle
-- Implement canvas-based image drag positioning
-- Add card duplication in collection
-- Add pagination for collection page
