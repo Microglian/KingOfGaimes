@@ -1,43 +1,42 @@
 # Yu-Gi-Oh Card Creator - PRD
 
-## Problem Statement
-Web-based application for creating, editing, storing, searching, and exporting custom Yu-Gi-Oh-style cards with full customization.
-
 ## Architecture
-- **Frontend**: React + Shadcn UI + HTML5 Canvas renderer + Tailwind CSS
-- **Backend**: FastAPI (Python) + Motor (async MongoDB driver)
-- **Database**: MongoDB
-- **No Authentication** - Open access
+- Frontend: React + Shadcn UI + HTML5 Canvas + Tailwind CSS
+- Backend: FastAPI + Motor (async MongoDB)
+- Database: MongoDB, No Authentication
 
-## What's Been Implemented (March 2026)
+## What's Been Implemented
+
 ### MVP (Initial)
-- Full backend API: CRUD, search, import/export, image proxy
-- Card Editor with form panel + live canvas preview
-- Card renderer with type-specific frame colors, attribute icons, level/rank/link, ATK/DEF
-- Collection page with search, delete, Export All, Import
-- JSON import/export, PNG export
+- Full CRUD API, search with multi-param filters, import/export
+- Card Editor: form panel + live canvas preview
+- Canvas renderer with type-specific frames, attributes, level/rank/link indicators
+- Collection page with search/filter/sort/delete
 - Dark theme (blues/teals/aquas)
 
-### Bug Fix Iteration 1
-- Fixed image loading from URLs (proxy-first for CORS)
-- Fixed PNG/JSON export (document.body.appendChild pattern)
-- Fixed auto-render toggle (CardCanvas only depends on renderTrigger, not card)
-- Made art box square (280x280)
-- Increased description font size (14px base) with proper auto-scaling/re-wrapping
-- Added archetype display on card canvas
-- Added collection filters: archetype, set code, type line
-- Added per-card PNG/JSON export in collection
-- Fixed Export All download
-- Made Import button visible via flex-wrap
+### Iteration 1 - Bug Fixes
+- Fixed image loading, PNG/JSON exports, auto-render toggle
+- Square art box, larger description font, collection filters
+
+### Iteration 2 - Feature Update
+- Save as New button for card duplication workflow
+- Card layout matching real Yu-Gi-Oh reference (wider-than-tall art box, cream desc box with type line + text + ATK/DEF + separator)
+- Image memory management: local uploads stay in memory, only filename stored in DB
+- "Save image data" checkbox for optional full data persistence
+- Manual font size adjuster with Auto fallback
+- Thumbnail generation for fast collection display
+- Re-upload hint for file-referenced images
+- Per-card PNG/JSON export in collection
+- Proper star rendering (red-backed gold stars)
+- Robust download mechanism (synchronous toDataURL, Blob + createObjectURL)
 
 ## Prioritized Backlog
 ### P1
-- High-resolution export toggle (2x/3x)
-- Card image drag-to-reposition on canvas
+- High-res export toggle (3x scale for print)
+- Drag-to-reposition image on canvas
 - Pagination for large collections
 
 ### P2
-- Card duplication
-- Batch delete
+- Batch operations (delete, export)
 - Card template presets
-- Print-ready export (300 DPI)
+- Undo/redo
