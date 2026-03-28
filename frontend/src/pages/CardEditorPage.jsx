@@ -3,9 +3,10 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import CardForm from "@/components/CardForm";
 import CardCanvas from "@/components/CardCanvas";
 import { getDefaultCard } from "@/lib/constants";
-import { createCard, updateCard, getCard } from "@/lib/api";
+import { createCard, updateCard, getCard, getProxyImageUrl } from "@/lib/api";
+import { renderCard, clearImageCache } from "@/lib/cardRenderer";
 import { toast } from "sonner";
-import { Download, Save, RotateCcw, FileJson } from "lucide-react";
+import { Download, Save, RotateCcw, FileJson, Upload } from "lucide-react";
 
 export default function CardEditorPage() {
   const [searchParams] = useSearchParams();
@@ -18,6 +19,10 @@ export default function CardEditorPage() {
   const [renderTrigger, setRenderTrigger] = useState(0);
   const canvasRef = useRef(null);
   const inactivityTimer = useRef(null);
+  const autoRenderRef = useRef(autoRender);
+
+  // Keep ref in sync
+  autoRenderRef.current = autoRender;
 
   // Load card if editing
   useEffect(() => {
@@ -32,21 +37,22 @@ export default function CardEditorPage() {
     }
   }, [editId]);
 
-  const handleCardChange = useCallback(
-    (field, value) => {
-      setCard((prev) => {
-        const updated = { ...prev, [field]: value };
-        return updated;
-      });
-      if (autoRender) {
-        clearTimeout(inactivityTimer.current);
-        inactivityTimer.current = setTimeout(() => {
-          setRenderTrigger((t) => t + 1);
-        }, 800);
-      }
-    },
-    [autoRender]
-  );
+  // Initial render
+  useEffect(() => {
+    setRenderTrigger((t) => t + 1);
+  }, []);
+
+  const handleCardChange = useCallback((field, value) => {
+    setCard((prev) => ({ ...prev, [field]: value }));
+
+    // Only schedule auto-render if autoRender is currently on
+    if (autoRenderRef.current) {
+      clearTimeout(inactivityTimer.current);
+      inactivityTimer.current = setTimeout(() => {
+        setRenderTrigger((t) => t + 1);
+      }, 800);
+    }
+  }, []);
 
   const handleRender = useCallback(() => {
     setRenderTrigger((t) => t + 1);
@@ -64,7 +70,7 @@ export default function CardEditorPage() {
         toast.success("Card saved");
         navigate(`/?id=${created.id}`, { replace: true });
       }
-    } catch (e) {
+    } catch {
       toast.error("Failed to save card");
     } finally {
       setSaving(false);
@@ -74,58 +80,74 @@ export default function CardEditorPage() {
   const handleNew = useCallback(() => {
     setCard(getDefaultCard());
     setCardId(null);
+    clearImageCache();
     setRenderTrigger((t) => t + 1);
     navigate("/", { replace: true });
   }, [navigate]);
 
-  const handleExportPng = useCallback(
-    (highRes = false) => {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      // Re-render at desired scale then export
-      const link = document.createElement("a");
-      link.download = `${card.name || "card"}.png`;
-      link.href = canvas.toDataURL("image/png");
-      link.click();
-    },
-    [card.name]
-  );
+  const handleExportPng = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
 
-  const handleExportJson = useCallback(() => {
-    const blob = new Blob([JSON.stringify(card, null, 2)], { type: "application/json" });
-    const link = document.createElement("a");
-    link.download = `${card.name || "card"}.json`;
-    link.href = URL.createObjectURL(blob);
-    link.click();
+    // Create a temporary high-res canvas for export
+    const exportCanvas = document.createElement("canvas");
+    const currentCard = card;
+    const proxyUrl = currentCard.imageUrl ? getProxyImageUrl(currentCard.imageUrl) : "";
+
+    renderCard(exportCanvas, currentCard, { scale: 2, proxyUrl }).then(() => {
+      const dataUrl = exportCanvas.toDataURL("image/png");
+      const link = document.createElement("a");
+      link.download = `${currentCard.name || "card"}.png`;
+      link.href = dataUrl;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success("PNG exported");
+    }).catch(() => {
+      toast.error("Failed to export PNG");
+    });
   }, [card]);
 
-  const handleImportJson = useCallback(
-    (e) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        try {
-          const data = JSON.parse(ev.target.result);
-          setCard({ ...getDefaultCard(), ...data });
-          setCardId(null);
-          setRenderTrigger((t) => t + 1);
-          toast.success("Card imported from JSON");
-        } catch {
-          toast.error("Invalid JSON file");
-        }
-      };
-      reader.readAsText(file);
-    },
-    []
-  );
+  const handleExportJson = useCallback(() => {
+    const jsonStr = JSON.stringify(card, null, 2);
+    const blob = new Blob([jsonStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.download = `${card.name || "card"}.json`;
+    link.href = url;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast.success("JSON exported");
+  }, [card]);
+
+  const handleImportJson = useCallback((e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const data = JSON.parse(ev.target.result);
+        setCard({ ...getDefaultCard(), ...data });
+        setCardId(null);
+        clearImageCache();
+        setRenderTrigger((t) => t + 1);
+        toast.success("Card imported from JSON");
+      } catch {
+        toast.error("Invalid JSON file");
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  }, []);
 
   return (
     <div className="editor-layout" data-testid="editor-layout">
       {/* Left: Form Panel */}
       <div className="form-panel" data-testid="form-panel">
         {/* Action bar */}
-        <div className="flex items-center gap-2 p-4 border-b border-[#162A3F]">
+        <div className="flex flex-wrap items-center gap-2 p-4 border-b border-[#162A3F]">
           <button
             onClick={handleSave}
             disabled={saving}
@@ -144,7 +166,7 @@ export default function CardEditorPage() {
             New
           </button>
           <button
-            onClick={() => handleExportPng(false)}
+            onClick={handleExportPng}
             className="btn-outline-dark flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs"
             data-testid="export-png-btn"
           >
@@ -160,7 +182,7 @@ export default function CardEditorPage() {
             JSON
           </button>
           <label className="btn-outline-dark flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs cursor-pointer" data-testid="import-json-btn">
-            <FileJson size={14} />
+            <Upload size={14} />
             Import
             <input type="file" accept=".json" onChange={handleImportJson} className="hidden" />
           </label>

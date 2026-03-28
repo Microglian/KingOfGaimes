@@ -140,11 +140,11 @@ async def search_cards(
     if rarity:
         query["rarity"] = rarity
     if archetype:
-        query["archetypes"] = {"$in": [archetype]}
+        query["archetypes"] = {"$regex": archetype, "$options": "i"}
     if setCode:
         query["setCode"] = {"$regex": setCode, "$options": "i"}
     if typeLine:
-        query["typeLine"] = {"$in": [typeLine]}
+        query["typeLine"] = {"$regex": typeLine, "$options": "i"}
 
     sort_dir = -1 if order == "desc" else 1
     sort_field = sort if sort in ["name", "createdAt", "updatedAt", "rarity"] else "updatedAt"
@@ -158,6 +158,33 @@ async def search_cards(
         result_cards.append(card_doc_to_response(c))
 
     return {"cards": result_cards, "total": total}
+
+# --- Import/Export (defined before {card_id} routes) ---
+
+@api_router.post("/cards/import", response_model=List[CardResponse], status_code=201)
+async def import_cards(cards: List[CardCreate]):
+    now = datetime.now(timezone.utc).isoformat()
+    results = []
+    for card in cards:
+        doc = card.model_dump(by_alias=True)
+        if "def" in doc:
+            doc["def_"] = doc.pop("def")
+        doc["id"] = str(uuid.uuid4())
+        doc["createdAt"] = now
+        doc["updatedAt"] = now
+        await db.cards.insert_one(doc)
+        results.append(card_doc_to_response({k: v for k, v in doc.items() if k != "_id"}))
+    return results
+
+@api_router.get("/cards/export/all")
+async def export_all_cards():
+    cards = await db.cards.find({}, {"_id": 0}).to_list(10000)
+    result = []
+    for c in cards:
+        result.append(card_doc_to_response(c))
+    return result
+
+# --- Single card routes ---
 
 @api_router.get("/cards/{card_id}", response_model=CardResponse)
 async def get_card(card_id: str):
@@ -189,31 +216,6 @@ async def delete_card(card_id: str):
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Card not found")
     return {"message": "Card deleted", "id": card_id}
-
-# --- Import/Export ---
-
-@api_router.post("/cards/import", response_model=List[CardResponse], status_code=201)
-async def import_cards(cards: List[CardCreate]):
-    now = datetime.now(timezone.utc).isoformat()
-    results = []
-    for card in cards:
-        doc = card.model_dump(by_alias=True)
-        if "def" in doc:
-            doc["def_"] = doc.pop("def")
-        doc["id"] = str(uuid.uuid4())
-        doc["createdAt"] = now
-        doc["updatedAt"] = now
-        await db.cards.insert_one(doc)
-        results.append(card_doc_to_response({k: v for k, v in doc.items() if k != "_id"}))
-    return results
-
-@api_router.get("/cards/export/all")
-async def export_all_cards():
-    cards = await db.cards.find({}, {"_id": 0}).to_list(10000)
-    result = []
-    for c in cards:
-        result.append(card_doc_to_response(c))
-    return result
 
 # --- Image Proxy (for CORS) ---
 

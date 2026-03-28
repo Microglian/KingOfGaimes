@@ -219,6 +219,99 @@ class YuGiOhCardAPITester:
             return True
         return False
 
+    def test_archetype_filter(self):
+        """Test filtering cards by archetype"""
+        # First create a card with specific archetype
+        card_data = {
+            "name": "Blue-Eyes White Dragon",
+            "type": "normal_monster",
+            "attribute": "light",
+            "typeLine": ["Dragon"],
+            "level": 8,
+            "atk": 3000,
+            "def": 2500,
+            "description": "This legendary dragon is a powerful engine of destruction.",
+            "archetypes": ["Blue-Eyes"],
+            "rarity": "ultra_rare"
+        }
+        success, response = self.run_test("Create Card with Archetype", "POST", "cards", 201, card_data)
+        if success and 'id' in response:
+            self.created_card_ids.append(response['id'])
+            
+            # Test archetype filter
+            success, filter_response = self.run_test("Filter by Archetype", "GET", "cards", 200, params={"archetype": "Blue-Eyes"})
+            if success and 'cards' in filter_response:
+                found_cards = [c for c in filter_response['cards'] if 'Blue-Eyes' in c.get('archetypes', [])]
+                if found_cards:
+                    self.log(f"   Found {len(found_cards)} cards with Blue-Eyes archetype")
+                    return True
+                else:
+                    self.log("   No cards found with Blue-Eyes archetype")
+                    return False
+        return False
+
+    def test_set_code_filter(self):
+        """Test filtering cards by set code"""
+        # First create a card with specific set code
+        card_data = {
+            "name": "Test Set Code Card",
+            "type": "normal_monster",
+            "attribute": "earth",
+            "typeLine": ["Warrior"],
+            "level": 4,
+            "atk": 1800,
+            "def": 1600,
+            "description": "A test card with specific set code.",
+            "setCode": "LOB",
+            "setNumber": "001",
+            "rarity": "common"
+        }
+        success, response = self.run_test("Create Card with Set Code", "POST", "cards", 201, card_data)
+        if success and 'id' in response:
+            self.created_card_ids.append(response['id'])
+            
+            # Test set code filter
+            success, filter_response = self.run_test("Filter by Set Code", "GET", "cards", 200, params={"setCode": "LOB"})
+            if success and 'cards' in filter_response:
+                found_cards = [c for c in filter_response['cards'] if c.get('setCode') == 'LOB']
+                if found_cards:
+                    self.log(f"   Found {len(found_cards)} cards with LOB set code")
+                    return True
+                else:
+                    self.log("   No cards found with LOB set code")
+                    return False
+        return False
+
+    def test_type_line_filter(self):
+        """Test filtering cards by type line content"""
+        # First create a card with specific type line
+        card_data = {
+            "name": "Test Dragon Type Card",
+            "type": "effect_monster",
+            "attribute": "fire",
+            "typeLine": ["Dragon", "Effect"],
+            "level": 6,
+            "atk": 2400,
+            "def": 2000,
+            "description": "A dragon-type monster for testing type line filtering.",
+            "rarity": "rare"
+        }
+        success, response = self.run_test("Create Card with Dragon Type", "POST", "cards", 201, card_data)
+        if success and 'id' in response:
+            self.created_card_ids.append(response['id'])
+            
+            # Test type line filter
+            success, filter_response = self.run_test("Filter by Type Line", "GET", "cards", 200, params={"typeLine": "Dragon"})
+            if success and 'cards' in filter_response:
+                found_cards = [c for c in filter_response['cards'] if 'Dragon' in c.get('typeLine', [])]
+                if found_cards:
+                    self.log(f"   Found {len(found_cards)} cards with Dragon in type line")
+                    return True
+                else:
+                    self.log("   No cards found with Dragon in type line")
+                    return False
+        return False
+
     def cleanup_created_cards(self):
         """Clean up cards created during testing"""
         self.log("🧹 Cleaning up created test cards...")
@@ -251,6 +344,11 @@ class YuGiOhCardAPITester:
         # Test special card types
         self.test_xyz_monster_creation()
         self.test_link_monster_creation()
+        
+        # Test new filtering functionality
+        self.test_archetype_filter()
+        self.test_set_code_filter()
+        self.test_type_line_filter()
         
         # Test delete (do this last to keep cards for other tests)
         if card_id:

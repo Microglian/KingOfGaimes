@@ -5,12 +5,19 @@ const CARD_H = 614;
 const BORDER = 12;
 const NAME_H = 38;
 const ATTR_SIZE = 30;
-const IMG_TOP = 100;
-const IMG_H = 220;
-const IMG_PAD = 30;
-const DESC_TOP = 380;
-const DESC_H = 160;
-const STAT_H = 30;
+
+// Square art box: 280x280 centered
+const IMG_SIZE = 280;
+const IMG_PAD = (CARD_W - IMG_SIZE) / 2; // 70
+const IMG_TOP = 82;
+
+const TYPE_LINE_TOP = IMG_TOP + IMG_SIZE + 6;
+const TYPE_LINE_H = 20;
+
+const DESC_TOP = TYPE_LINE_TOP + TYPE_LINE_H + 6;
+const STAT_H = 24;
+const SET_H = 16;
+const BOTTOM_PAD = 10;
 
 export function getCardDimensions() {
   return { width: CARD_W, height: CARD_H };
@@ -22,7 +29,6 @@ export async function renderCard(canvas, card, options = {}) {
   canvas.width = CARD_W * scale;
   canvas.height = CARD_H * scale;
   ctx.scale(scale, scale);
-
   ctx.clearRect(0, 0, CARD_W, CARD_H);
 
   // 1. Outer border
@@ -42,37 +48,16 @@ export async function renderCard(canvas, card, options = {}) {
   roundRect(ctx, BORDER, BORDER, CARD_W - BORDER * 2, CARD_H - BORDER * 2, 4);
   ctx.fill();
 
-  // 4. Name bar
   drawNameBar(ctx, card);
-
-  // 5. Attribute icon
   drawAttributeIcon(ctx, card);
-
-  // 6. Level / Rank / Link rating
   drawLevelIndicator(ctx, card);
-
-  // 7. Image box
   await drawImageBox(ctx, card, options);
-
-  // 8. Type line
   drawTypeLine(ctx, card);
-
-  // 9. Description box
   drawDescriptionBox(ctx, card);
-
-  // 10. ATK/DEF or Link
   drawStats(ctx, card);
-
-  // 11. Set info & rarity
   drawSetInfo(ctx, card);
-
-  // 12. Overlay effects
   drawOverlay(ctx, card);
-
-  // 13. Link arrows
-  if (isLink(card.type)) {
-    drawLinkArrows(ctx, card);
-  }
+  if (isLink(card.type)) drawLinkArrows(ctx, card);
 }
 
 function drawNameBar(ctx, card) {
@@ -85,14 +70,13 @@ function drawNameBar(ctx, card) {
   ctx.fill();
 
   ctx.fillStyle = card.nameColor || "#FFFFFF";
-  ctx.font = "bold 22px 'Outfit', sans-serif";
   ctx.textBaseline = "middle";
-
+  let fontSize = 22;
+  ctx.font = `bold ${fontSize}px 'Outfit', sans-serif`;
   const name = card.name || "Card Name";
   const measured = ctx.measureText(name).width;
   if (measured > maxW) {
-    const ratio = maxW / measured;
-    const fontSize = Math.max(14, Math.floor(22 * ratio));
+    fontSize = Math.max(12, Math.floor(22 * (maxW / measured)));
     ctx.font = `bold ${fontSize}px 'Outfit', sans-serif`;
   }
   ctx.fillText(name, x, y + NAME_H / 2, maxW);
@@ -117,13 +101,13 @@ function drawAttributeIcon(ctx, card) {
   ctx.textBaseline = "middle";
   ctx.fillText(card.attribute?.toUpperCase()?.substring(0, 4) || "", x + ATTR_SIZE / 2, y + ATTR_SIZE / 2);
   ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
 }
 
 function drawLevelIndicator(ctx, card) {
   const y = BORDER + NAME_H + 14;
 
   if (isXyz(card.type) && card.rank) {
-    // Rank stars (left-aligned, dark)
     const count = Math.min(card.rank, 13);
     const starSize = 16;
     const totalW = count * starSize;
@@ -131,7 +115,6 @@ function drawLevelIndicator(ctx, card) {
     for (let i = 0; i < count; i++) {
       drawStar(ctx, startX + i * starSize + starSize / 2, y + 8, starSize / 2 - 1, "#1A1A1A", "#DAA520");
     }
-    // Label
     ctx.fillStyle = "#DAA520";
     ctx.font = "bold 10px 'Manrope', sans-serif";
     ctx.fillText("RANK", startX + totalW + 6, y + 11);
@@ -170,10 +153,10 @@ function drawStar(ctx, cx, cy, r, fill, stroke) {
 async function drawImageBox(ctx, card, options) {
   const x = IMG_PAD;
   const y = IMG_TOP;
-  const w = CARD_W - IMG_PAD * 2;
-  const h = IMG_H;
+  const w = IMG_SIZE;
+  const h = IMG_SIZE;
 
-  // Image frame
+  // Image frame border
   ctx.fillStyle = "rgba(0,0,0,0.6)";
   ctx.fillRect(x - 2, y - 2, w + 4, h + 4);
 
@@ -195,7 +178,6 @@ async function drawImageBox(ctx, card, options) {
         const offX = card.imageOffset?.x || 0;
         const offY = card.imageOffset?.y || 0;
 
-        // Fit image to box then apply zoom/offset
         const imgRatio = img.width / img.height;
         const boxRatio = w / h;
         let drawW, drawH;
@@ -208,43 +190,45 @@ async function drawImageBox(ctx, card, options) {
         }
         const drawX = x + (w - drawW) / 2 + offX;
         const drawY = y + (h - drawH) / 2 + offY;
-
         ctx.drawImage(img, drawX, drawY, drawW, drawH);
         ctx.restore();
+      } else {
+        drawImagePlaceholder(ctx, x, y, w, h, "Image failed to load");
       }
-    } catch (e) {
-      // Draw placeholder text
-      ctx.fillStyle = "#555";
-      ctx.font = "14px 'Manrope', sans-serif";
-      ctx.textAlign = "center";
-      ctx.fillText("Image failed to load", x + w / 2, y + h / 2);
-      ctx.textAlign = "left";
+    } catch {
+      drawImagePlaceholder(ctx, x, y, w, h, "Image error");
     }
   } else {
-    ctx.fillStyle = "#333";
-    ctx.font = "14px 'Manrope', sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText("No Image", x + w / 2, y + h / 2);
-    ctx.textAlign = "left";
+    drawImagePlaceholder(ctx, x, y, w, h, "No Image");
   }
 }
 
+function drawImagePlaceholder(ctx, x, y, w, h, text) {
+  ctx.fillStyle = "#555";
+  ctx.font = "14px 'Manrope', sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, x + w / 2, y + h / 2);
+  ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
+}
+
 function drawTypeLine(ctx, card) {
-  const y = IMG_TOP + IMG_H + 10;
+  const y = TYPE_LINE_TOP;
   const x = IMG_PAD + 4;
-  const maxW = CARD_W - IMG_PAD * 2 - 8;
+  const maxW = IMG_SIZE - 8;
 
   let text = "";
   if (isSpellTrap(card.type)) {
-    const subtype = card.spellTrapType ? `[${card.spellTrapType.replace("_", "-").toUpperCase()}]` : "";
-    text = `[${card.type.toUpperCase()} CARD ${subtype}]`;
+    const subtype = card.spellTrapType ? ` ${card.spellTrapType.replace(/_/g, "-").toUpperCase()}` : "";
+    text = `[${card.type.toUpperCase()} CARD${subtype}]`;
   } else {
     const parts = card.typeLine?.length > 0 ? card.typeLine : ["???"];
     text = `[${parts.join(" / ")}]`;
   }
 
   ctx.fillStyle = "rgba(0,0,0,0.25)";
-  roundRect(ctx, IMG_PAD, y - 4, CARD_W - IMG_PAD * 2, 22, 2);
+  roundRect(ctx, IMG_PAD, y - 2, IMG_SIZE, TYPE_LINE_H, 2);
   ctx.fill();
 
   ctx.fillStyle = "#111";
@@ -252,53 +236,108 @@ function drawTypeLine(ctx, card) {
   ctx.font = `bold ${fontSize}px 'Manrope', sans-serif`;
   const measured = ctx.measureText(text).width;
   if (measured > maxW) {
-    fontSize = Math.max(8, Math.floor(12 * (maxW / measured)));
+    fontSize = Math.max(7, Math.floor(12 * (maxW / measured)));
     ctx.font = `bold ${fontSize}px 'Manrope', sans-serif`;
   }
-  ctx.fillText(text, x, y + 10, maxW);
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, x, y + TYPE_LINE_H / 2, maxW);
+  ctx.textBaseline = "alphabetic";
 }
 
 function drawDescriptionBox(ctx, card) {
   const x = IMG_PAD;
   const y = DESC_TOP;
-  const w = CARD_W - IMG_PAD * 2;
-  const h = isMonsterType(card.type) ? DESC_H - 10 : DESC_H + 20;
+  const w = IMG_SIZE;
+
+  // Calculate available height: from DESC_TOP to bottom area
+  const isMon = isMonsterType(card.type);
+  const bottomReserved = isMon ? STAT_H + SET_H + BOTTOM_PAD + 4 : SET_H + BOTTOM_PAD + 4;
+  const h = CARD_H - BORDER - y - bottomReserved;
 
   // Box background
   ctx.fillStyle = "rgba(245, 240, 228, 0.95)";
   roundRect(ctx, x, y, w, h, 3);
   ctx.fill();
 
-  // Border
   ctx.strokeStyle = "rgba(0,0,0,0.3)";
   ctx.lineWidth = 1;
   roundRect(ctx, x, y, w, h, 3);
   ctx.stroke();
 
-  // Text
+  // Text with clipping
   const padding = 8;
   const textX = x + padding;
-  const textY = y + padding + 10;
+  const textY = y + padding;
   const textW = w - padding * 2;
+  const textH = h - padding * 2;
   const text = card.description || "";
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(x + 2, y + 2, w - 4, h - 4);
+  ctx.clip();
 
   ctx.fillStyle = "#111";
   const isNormalMonster = card.type === "normal_monster";
-  const baseFontSize = 11;
+  const baseFontSize = 14;
   const fontStyle = isNormalMonster ? "italic" : "normal";
 
-  wrapText(ctx, text, textX, textY, textW, h - padding * 2 - 10, baseFontSize, fontStyle);
+  wrapText(ctx, text, textX, textY, textW, textH, baseFontSize, fontStyle);
+  ctx.restore();
+
+  // Draw archetypes below description box if any
+  if (card.archetypes?.length > 0) {
+    const archY = y + h + 2;
+    ctx.fillStyle = "rgba(0,0,0,0.4)";
+    ctx.font = "bold 8px 'Manrope', sans-serif";
+    const archText = card.archetypes.join(" / ");
+    ctx.fillText(archText, x + 4, archY + 8, w - 8);
+  }
 }
 
 function wrapText(ctx, text, x, y, maxW, maxH, baseFontSize, fontStyle) {
   if (!text) return;
 
+  let fontSize = baseFontSize;
+  const minFontSize = 7;
+
+  // Binary search for the best font size that fits
+  while (fontSize >= minFontSize) {
+    ctx.font = `${fontStyle} ${fontSize}px 'Manrope', sans-serif`;
+    const lineH = fontSize + 3;
+
+    const lines = computeLines(ctx, text, maxW);
+    const totalH = lines.length * lineH;
+
+    if (totalH <= maxH) {
+      // Fits! Draw the lines.
+      let curY = y + fontSize; // first baseline
+      for (const line of lines) {
+        ctx.fillText(line, x, curY, maxW);
+        curY += lineH;
+      }
+      return;
+    }
+    // Doesn't fit, try smaller
+    fontSize--;
+  }
+
+  // At minimum font size, just draw what fits
+  fontSize = minFontSize;
+  ctx.font = `${fontStyle} ${fontSize}px 'Manrope', sans-serif`;
+  const lineH = fontSize + 3;
+  const lines = computeLines(ctx, text, maxW);
+  let curY = y + fontSize;
+  for (const line of lines) {
+    if (curY > y + maxH) break;
+    ctx.fillText(line, x, curY, maxW);
+    curY += lineH;
+  }
+}
+
+function computeLines(ctx, text, maxW) {
   const lines = [];
   const paragraphs = text.split("\n");
-
-  let fontSize = baseFontSize;
-  ctx.font = `${fontStyle} ${fontSize}px 'Manrope', sans-serif`;
-
   for (const para of paragraphs) {
     if (para.trim() === "") {
       lines.push("");
@@ -308,7 +347,7 @@ function wrapText(ctx, text, x, y, maxW, maxH, baseFontSize, fontStyle) {
     let currentLine = "";
     for (const word of words) {
       const testLine = currentLine ? currentLine + " " + word : word;
-      if (ctx.measureText(testLine).width > maxW) {
+      if (ctx.measureText(testLine).width > maxW && currentLine) {
         lines.push(currentLine);
         currentLine = word;
       } else {
@@ -317,28 +356,13 @@ function wrapText(ctx, text, x, y, maxW, maxH, baseFontSize, fontStyle) {
     }
     if (currentLine) lines.push(currentLine);
   }
-
-  const lineH = fontSize + 3;
-  const totalH = lines.length * lineH;
-
-  if (totalH > maxH && lines.length > 0) {
-    fontSize = Math.max(7, Math.floor(baseFontSize * (maxH / totalH)));
-    ctx.font = `${fontStyle} ${fontSize}px 'Manrope', sans-serif`;
-  }
-
-  const actualLineH = fontSize + 3;
-  let curY = y;
-  for (const line of lines) {
-    if (curY + actualLineH > y + maxH + 5) break;
-    ctx.fillText(line, x, curY, maxW);
-    curY += actualLineH;
-  }
+  return lines;
 }
 
 function drawStats(ctx, card) {
   if (!isMonsterType(card.type)) return;
 
-  const y = CARD_H - BORDER - STAT_H - 16;
+  const y = CARD_H - BORDER - SET_H - STAT_H - BOTTOM_PAD;
   const rightX = CARD_W - IMG_PAD - 4;
 
   ctx.fillStyle = "#111";
@@ -357,7 +381,7 @@ function drawStats(ctx, card) {
 }
 
 function drawSetInfo(ctx, card) {
-  const y = CARD_H - BORDER - 14;
+  const y = CARD_H - BORDER - BOTTOM_PAD;
 
   if (card.setCode || card.setNumber) {
     ctx.fillStyle = "rgba(0,0,0,0.5)";
@@ -366,44 +390,35 @@ function drawSetInfo(ctx, card) {
     ctx.fillText(setStr, IMG_PAD, y);
   }
 
-  // Rarity indicator
   if (card.rarity && card.rarity !== "common") {
     const raritySymbols = {
       uncommon: "U", rare: "R", super_rare: "SR",
       ultra_rare: "UR", secret_rare: "ScR",
       ultimate_rare: "UtR", holographic_rare: "HgR",
     };
-    const sym = raritySymbols[card.rarity] || "";
     ctx.fillStyle = getRarityColor(card.rarity);
     ctx.font = "bold 10px 'Outfit', sans-serif";
     ctx.textAlign = "right";
-    ctx.fillText(sym, CARD_W - IMG_PAD, y);
+    ctx.fillText(raritySymbols[card.rarity] || "", CARD_W - IMG_PAD, y);
     ctx.textAlign = "left";
   }
 }
 
 function getRarityColor(rarity) {
   const colors = {
-    uncommon: "#708090",
-    rare: "#C0C0C0",
-    super_rare: "#4169E1",
-    ultra_rare: "#FFD700",
-    secret_rare: "#FF69B4",
-    ultimate_rare: "#FF4500",
-    holographic_rare: "#00CED1",
+    uncommon: "#708090", rare: "#C0C0C0", super_rare: "#4169E1",
+    ultra_rare: "#FFD700", secret_rare: "#FF69B4",
+    ultimate_rare: "#FF4500", holographic_rare: "#00CED1",
   };
   return colors[rarity] || "#999";
 }
 
 function drawOverlay(ctx, card) {
   if (!card.overlays || card.overlays.length === 0) return;
-
   for (const overlay of card.overlays) {
     if (overlay === "none") continue;
-
     ctx.save();
     ctx.globalCompositeOperation = "overlay";
-
     if (overlay === "super_foil") {
       const grad = ctx.createLinearGradient(0, 0, CARD_W, CARD_H);
       grad.addColorStop(0, "rgba(255,255,255,0)");
@@ -443,8 +458,9 @@ function drawOverlay(ctx, card) {
     } else if (overlay === "holographic") {
       ctx.globalCompositeOperation = "color-dodge";
       const grad = ctx.createLinearGradient(0, 0, CARD_W, CARD_H);
-      const colors = ["#ff000010", "#ff880010", "#ffff0010", "#00ff0010", "#0088ff10", "#8800ff10"];
-      colors.forEach((c, i) => grad.addColorStop(i / (colors.length - 1), c));
+      ["#ff000010", "#ff880010", "#ffff0010", "#00ff0010", "#0088ff10", "#8800ff10"].forEach((c, i, a) =>
+        grad.addColorStop(i / (a.length - 1), c)
+      );
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, CARD_W, CARD_H);
     }
@@ -454,27 +470,24 @@ function drawOverlay(ctx, card) {
 
 function drawLinkArrows(ctx, card) {
   if (!card.linkArrows || card.linkArrows.length === 0) return;
-
+  const imgCenterY = IMG_TOP + IMG_SIZE / 2;
   const arrowPositions = {
-    top_left: { x: BORDER + 6, y: IMG_TOP - 6, angle: -135 },
-    top: { x: CARD_W / 2, y: IMG_TOP - 8, angle: -90 },
-    top_right: { x: CARD_W - BORDER - 6, y: IMG_TOP - 6, angle: -45 },
-    left: { x: BORDER + 2, y: IMG_TOP + IMG_H / 2, angle: 180 },
-    right: { x: CARD_W - BORDER - 2, y: IMG_TOP + IMG_H / 2, angle: 0 },
-    bottom_left: { x: BORDER + 6, y: IMG_TOP + IMG_H + 6, angle: 135 },
-    bottom: { x: CARD_W / 2, y: IMG_TOP + IMG_H + 8, angle: 90 },
-    bottom_right: { x: CARD_W - BORDER - 6, y: IMG_TOP + IMG_H + 6, angle: 45 },
+    top_left: { x: IMG_PAD - 2, y: IMG_TOP - 2, angle: -135 },
+    top: { x: CARD_W / 2, y: IMG_TOP - 4, angle: -90 },
+    top_right: { x: CARD_W - IMG_PAD + 2, y: IMG_TOP - 2, angle: -45 },
+    left: { x: IMG_PAD - 4, y: imgCenterY, angle: 180 },
+    right: { x: CARD_W - IMG_PAD + 4, y: imgCenterY, angle: 0 },
+    bottom_left: { x: IMG_PAD - 2, y: IMG_TOP + IMG_SIZE + 2, angle: 135 },
+    bottom: { x: CARD_W / 2, y: IMG_TOP + IMG_SIZE + 4, angle: 90 },
+    bottom_right: { x: CARD_W - IMG_PAD + 2, y: IMG_TOP + IMG_SIZE + 2, angle: 45 },
   };
 
   for (const arrow of card.linkArrows) {
     const pos = arrowPositions[arrow];
     if (!pos) continue;
-
     ctx.save();
     ctx.translate(pos.x, pos.y);
     ctx.rotate((pos.angle * Math.PI) / 180);
-
-    // Active arrow (red/orange)
     ctx.fillStyle = "#FF4444";
     ctx.beginPath();
     ctx.moveTo(10, 0);
@@ -482,11 +495,9 @@ function drawLinkArrows(ctx, card) {
     ctx.lineTo(-5, 6);
     ctx.closePath();
     ctx.fill();
-
     ctx.strokeStyle = "#FFD700";
     ctx.lineWidth = 1;
     ctx.stroke();
-
     ctx.restore();
   }
 }
@@ -526,28 +537,37 @@ function loadImage(url, options = {}) {
   }
 
   return new Promise((resolve) => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => {
-      imageCache.set(cacheKey, img);
-      resolve(img);
-    };
-    img.onerror = () => {
-      // Try proxy
-      if (!url.includes("proxy-image") && options.proxyUrl) {
-        const proxyImg = new Image();
-        proxyImg.crossOrigin = "anonymous";
-        proxyImg.onload = () => {
-          imageCache.set(cacheKey, proxyImg);
-          resolve(proxyImg);
-        };
-        proxyImg.onerror = () => resolve(null);
-        proxyImg.src = options.proxyUrl;
-      } else {
-        resolve(null);
-      }
-    };
-    img.src = url;
+    // For data: URIs, load directly
+    if (url.startsWith("data:")) {
+      const img = new Image();
+      img.onload = () => { imageCache.set(cacheKey, img); resolve(img); };
+      img.onerror = () => resolve(null);
+      img.src = url;
+      return;
+    }
+
+    // For external URLs, try proxy first (avoids CORS / canvas taint)
+    if (options.proxyUrl) {
+      const proxyImg = new Image();
+      proxyImg.crossOrigin = "anonymous";
+      proxyImg.onload = () => { imageCache.set(cacheKey, proxyImg); resolve(proxyImg); };
+      proxyImg.onerror = () => {
+        // Fallback: try direct
+        const directImg = new Image();
+        directImg.crossOrigin = "anonymous";
+        directImg.onload = () => { imageCache.set(cacheKey, directImg); resolve(directImg); };
+        directImg.onerror = () => resolve(null);
+        directImg.src = url;
+      };
+      proxyImg.src = options.proxyUrl;
+    } else {
+      // No proxy available, try direct
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => { imageCache.set(cacheKey, img); resolve(img); };
+      img.onerror = () => resolve(null);
+      img.src = url;
+    }
   });
 }
 
