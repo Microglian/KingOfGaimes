@@ -142,11 +142,13 @@ export function getDefaultCard() {
     imageOffset: { x: 0, y: 0 },
     imageCrop: { zoom: 1.0 },
     frameStyle: "auto",
-    nameColor: "#FFFFFF",
+    nameColor: "#000000",
     overlays: [],
     archetypes: [],
     setCode: "",
     setNumber: "",
     rarity: "common",
+    descriptionFontSize: null,
+    thumbnail: null,
   };
 }

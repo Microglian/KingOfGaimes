@@ -4,9 +4,9 @@ import CardForm from "@/components/CardForm";
 import CardCanvas from "@/components/CardCanvas";
 import { getDefaultCard } from "@/lib/constants";
 import { createCard, updateCard, getCard, getProxyImageUrl } from "@/lib/api";
-import { renderCard, clearImageCache } from "@/lib/cardRenderer";
+import { renderCard, clearImageCache, generateThumbnail } from "@/lib/cardRenderer";
 import { toast } from "sonner";
-import { Download, Save, RotateCcw, FileJson, Upload } from "lucide-react";
+import { Download, Save, Copy, RotateCcw, FileJson, Upload } from "lucide-react";
 
 export default function CardEditorPage() {
   const [searchParams] = useSearchParams();
@@ -17,57 +17,71 @@ export default function CardEditorPage() {
   const [saving, setSaving] = useState(false);
   const [autoRender, setAutoRender] = useState(true);
   const [renderTrigger, setRenderTrigger] = useState(0);
+  const [localImageData, setLocalImageData] = useState(null);
+  const [saveImageData, setSaveImageData] = useState(false);
   const canvasRef = useRef(null);
   const inactivityTimer = useRef(null);
   const autoRenderRef = useRef(autoRender);
+  const localImageDataRef = useRef(localImageData);
 
-  // Keep ref in sync
   autoRenderRef.current = autoRender;
+  localImageDataRef.current = localImageData;
 
-  // Load card if editing
   useEffect(() => {
     if (editId) {
       getCard(editId)
         .then((data) => {
           setCard(data);
           setCardId(data.id);
+          setLocalImageData(null);
           setRenderTrigger((t) => t + 1);
         })
         .catch(() => toast.error("Failed to load card"));
     }
   }, [editId]);
 
-  // Initial render
-  useEffect(() => {
-    setRenderTrigger((t) => t + 1);
-  }, []);
+  useEffect(() => { setRenderTrigger((t) => t + 1); }, []);
 
   const handleCardChange = useCallback((field, value) => {
     setCard((prev) => ({ ...prev, [field]: value }));
-
-    // Only schedule auto-render if autoRender is currently on
     if (autoRenderRef.current) {
       clearTimeout(inactivityTimer.current);
-      inactivityTimer.current = setTimeout(() => {
-        setRenderTrigger((t) => t + 1);
-      }, 800);
+      inactivityTimer.current = setTimeout(() => setRenderTrigger((t) => t + 1), 800);
     }
   }, []);
 
-  const handleRender = useCallback(() => {
-    setRenderTrigger((t) => t + 1);
+  const handleLocalImageChange = useCallback((dataUrl, fileName) => {
+    setLocalImageData(dataUrl);
+    // Store just the filename as a reference
+    setCard((prev) => ({ ...prev, imageUrl: `file:${fileName}` }));
+    if (autoRenderRef.current) {
+      clearTimeout(inactivityTimer.current);
+      inactivityTimer.current = setTimeout(() => setRenderTrigger((t) => t + 1), 400);
+    }
   }, []);
 
-  const handleSave = useCallback(async () => {
+  const handleRender = useCallback(() => setRenderTrigger((t) => t + 1), []);
+
+  const doSave = useCallback(async (asNew) => {
     setSaving(true);
     try {
-      if (cardId) {
-        await updateCard(cardId, card);
+      const saveData = { ...card };
+      // If "save image data" is checked and we have local data, embed it
+      if (saveImageData && localImageData) {
+        saveData.imageUrl = localImageData;
+      }
+      // Generate thumbnail from current canvas
+      if (canvasRef.current) {
+        try { saveData.thumbnail = generateThumbnail(canvasRef.current); } catch { /* ok */ }
+      }
+
+      if (cardId && !asNew) {
+        await updateCard(cardId, saveData);
         toast.success("Card updated");
       } else {
-        const created = await createCard(card);
+        const created = await createCard(saveData);
         setCardId(created.id);
-        toast.success("Card saved");
+        toast.success(asNew ? "Saved as new card" : "Card saved");
         navigate(`/?id=${created.id}`, { replace: true });
       }
     } catch {
@@ -75,11 +89,12 @@ export default function CardEditorPage() {
     } finally {
       setSaving(false);
     }
-  }, [card, cardId, navigate]);
+  }, [card, cardId, navigate, saveImageData, localImageData]);
 
   const handleNew = useCallback(() => {
     setCard(getDefaultCard());
     setCardId(null);
+    setLocalImageData(null);
     clearImageCache();
     setRenderTrigger((t) => t + 1);
     navigate("/", { replace: true });
@@ -87,39 +102,27 @@ export default function CardEditorPage() {
 
   const handleExportPng = useCallback(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    // Create a temporary high-res canvas for export
-    const exportCanvas = document.createElement("canvas");
-    const currentCard = card;
-    const proxyUrl = currentCard.imageUrl ? getProxyImageUrl(currentCard.imageUrl) : "";
-
-    renderCard(exportCanvas, currentCard, { scale: 2, proxyUrl }).then(() => {
-      const dataUrl = exportCanvas.toDataURL("image/png");
-      const link = document.createElement("a");
-      link.download = `${currentCard.name || "card"}.png`;
-      link.href = dataUrl;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      toast.success("PNG exported");
-    }).catch(() => {
-      toast.error("Failed to export PNG");
-    });
-  }, [card]);
+    if (!canvas) { toast.error("No canvas available"); return; }
+    try {
+      const dataUrl = canvas.toDataURL("image/png");
+      triggerDownload(dataUrl, `${card.name || "card"}.png`);
+    } catch {
+      toast.error("PNG export failed (canvas may be tainted by cross-origin image)");
+    }
+  }, [card.name]);
 
   const handleExportJson = useCallback(() => {
-    const jsonStr = JSON.stringify(card, null, 2);
+    const exportCard = { ...card };
+    // Don't export local image data references
+    if (exportCard.imageUrl?.startsWith("file:")) {
+      exportCard.imageUrl = "";
+    }
+    delete exportCard.thumbnail;
+    const jsonStr = JSON.stringify(exportCard, null, 2);
     const blob = new Blob([jsonStr], { type: "application/json" });
     const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.download = `${card.name || "card"}.json`;
-    link.href = url;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    toast.success("JSON exported");
+    triggerDownload(url, `${card.name || "card"}.json`);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   }, [card]);
 
   const handleImportJson = useCallback((e) => {
@@ -131,6 +134,7 @@ export default function CardEditorPage() {
         const data = JSON.parse(ev.target.result);
         setCard({ ...getDefaultCard(), ...data });
         setCardId(null);
+        setLocalImageData(null);
         clearImageCache();
         setRenderTrigger((t) => t + 1);
         toast.success("Card imported from JSON");
@@ -142,80 +146,70 @@ export default function CardEditorPage() {
     e.target.value = "";
   }, []);
 
+  const showReuploadHint = card.imageUrl?.startsWith("file:") && !localImageData;
+
   return (
     <div className="editor-layout" data-testid="editor-layout">
-      {/* Left: Form Panel */}
       <div className="form-panel" data-testid="form-panel">
         {/* Action bar */}
-        <div className="flex flex-wrap items-center gap-2 p-4 border-b border-[#162A3F]">
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="btn-cyan flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs"
-            data-testid="save-card-btn"
-          >
-            <Save size={14} />
-            {saving ? "Saving..." : cardId ? "Update" : "Save"}
+        <div className="flex flex-wrap items-center gap-2 p-3 border-b border-[#162A3F]">
+          <button onClick={() => doSave(false)} disabled={saving}
+            className="btn-cyan flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs" data-testid="save-card-btn">
+            <Save size={14} /> {saving ? "Saving..." : cardId ? "Update" : "Save"}
           </button>
-          <button
-            onClick={handleNew}
-            className="btn-outline-dark flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs"
-            data-testid="new-card-btn"
-          >
-            <RotateCcw size={14} />
-            New
+          {cardId && (
+            <button onClick={() => doSave(true)} disabled={saving}
+              className="btn-outline-dark flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs" data-testid="save-as-new-btn"
+              style={{ borderColor: '#00C9A7', color: '#00C9A7' }}>
+              <Copy size={14} /> Save as New
+            </button>
+          )}
+          <button onClick={handleNew}
+            className="btn-outline-dark flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs" data-testid="new-card-btn">
+            <RotateCcw size={14} /> New
           </button>
-          <button
-            onClick={handleExportPng}
-            className="btn-outline-dark flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs"
-            data-testid="export-png-btn"
-          >
-            <Download size={14} />
-            PNG
+          <button onClick={handleExportPng}
+            className="btn-outline-dark flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs" data-testid="export-png-btn">
+            <Download size={14} /> PNG
           </button>
-          <button
-            onClick={handleExportJson}
-            className="btn-outline-dark flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs"
-            data-testid="export-json-btn"
-          >
-            <FileJson size={14} />
-            JSON
+          <button onClick={handleExportJson}
+            className="btn-outline-dark flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs" data-testid="export-json-btn">
+            <FileJson size={14} /> JSON
           </button>
           <label className="btn-outline-dark flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs cursor-pointer" data-testid="import-json-btn">
-            <Upload size={14} />
-            Import
+            <Upload size={14} /> Import
             <input type="file" accept=".json" onChange={handleImportJson} className="hidden" />
           </label>
         </div>
 
-        <CardForm card={card} onChange={handleCardChange} />
+        {showReuploadHint && (
+          <div className="mx-4 mt-3 p-2 rounded text-xs" style={{ background: 'rgba(0,229,255,0.08)', border: '1px solid rgba(0,229,255,0.2)', color: '#8BA0B2' }} data-testid="reupload-hint">
+            Image file reference: <span className="text-[#00E5FF] font-mono">{card.imageUrl.replace("file:", "")}</span>
+            <br/>Re-upload the file to see the image.
+          </div>
+        )}
+
+        <CardForm
+          card={card}
+          onChange={handleCardChange}
+          onLocalImageChange={handleLocalImageChange}
+          saveImageData={saveImageData}
+          onSaveImageDataChange={setSaveImageData}
+          localImageData={localImageData}
+        />
       </div>
 
-      {/* Right: Preview Panel */}
       <div className="preview-panel" data-testid="preview-panel">
         <div className="flex flex-col items-center gap-4">
-          <CardCanvas
-            ref={canvasRef}
-            card={card}
-            renderTrigger={renderTrigger}
-          />
+          <CardCanvas ref={canvasRef} card={card} renderTrigger={renderTrigger} localImageData={localImageData} />
           <div className="flex items-center gap-4 relative z-10">
             <label className="flex items-center gap-2 text-xs text-[#8BA0B2] cursor-pointer">
-              <input
-                type="checkbox"
-                checked={autoRender}
-                onChange={(e) => setAutoRender(e.target.checked)}
-                className="accent-[#00E5FF]"
-                data-testid="auto-render-checkbox"
-              />
+              <input type="checkbox" checked={autoRender} onChange={(e) => setAutoRender(e.target.checked)}
+                className="accent-[#00E5FF]" data-testid="auto-render-checkbox" />
               Auto-render
             </label>
             {!autoRender && (
-              <button
-                onClick={handleRender}
-                className="btn-cyan px-4 py-1.5 rounded-md text-xs"
-                data-testid="render-btn"
-              >
+              <button onClick={handleRender} className="btn-cyan px-4 py-1.5 rounded-md text-xs" data-testid="render-btn">
                 Render
               </button>
             )}
@@ -224,4 +218,15 @@ export default function CardEditorPage() {
       </div>
     </div>
   );
+}
+
+function triggerDownload(href, filename) {
+  const a = document.createElement("a");
+  a.href = href;
+  a.download = filename;
+  a.style.display = "none";
+  document.body.appendChild(a);
+  a.click();
+  // Remove after a short delay
+  setTimeout(() => { try { document.body.removeChild(a); } catch {} }, 500);
 }

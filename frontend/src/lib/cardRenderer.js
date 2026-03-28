@@ -1,23 +1,40 @@
 import { FRAME_COLORS, FRAME_BORDER_COLORS, ATTRIBUTE_COLORS, isMonsterType, isXyz, isLink, isSpellTrap } from "./constants";
 
+// Card dimensions matching real Yu-Gi-Oh proportions
 const CARD_W = 420;
 const CARD_H = 614;
-const BORDER = 12;
-const NAME_H = 38;
-const ATTR_SIZE = 30;
+const BORDER = 10;
 
-// Square art box: 280x280 centered
-const IMG_SIZE = 280;
-const IMG_PAD = (CARD_W - IMG_SIZE) / 2; // 70
-const IMG_TOP = 82;
+// Name bar
+const NAME_Y = BORDER + 2;
+const NAME_H = 40;
 
-const TYPE_LINE_TOP = IMG_TOP + IMG_SIZE + 6;
-const TYPE_LINE_H = 20;
+// Stars
+const STAR_Y = NAME_Y + NAME_H + 2;
+const STAR_SIZE = 17;
 
-const DESC_TOP = TYPE_LINE_TOP + TYPE_LINE_H + 6;
-const STAT_H = 24;
-const SET_H = 16;
-const BOTTOM_PAD = 10;
+// Art box - WIDER than tall (matching real cards)
+const ART_PAD = 22;
+const ART_TOP = 78;
+const ART_W = CARD_W - ART_PAD * 2; // 376
+const ART_H = Math.round(ART_W * 0.82); // ~308, wider than tall
+const ART_BOTTOM = ART_TOP + ART_H;
+
+// Set code area
+const SET_CODE_Y = ART_BOTTOM + 3;
+
+// Description box (contains type line + text + ATK/DEF)
+const DESC_PAD = ART_PAD;
+const DESC_TOP = ART_BOTTOM + 18;
+const DESC_W = CARD_W - DESC_PAD * 2;
+const DESC_BOTTOM = CARD_H - BORDER - 22;
+const DESC_H = DESC_BOTTOM - DESC_TOP;
+
+// Type line inside desc box
+const TYPE_LINE_H = 18;
+
+// ATK/DEF inside desc box
+const STAT_H = 22;
 
 export function getCardDimensions() {
   return { width: CARD_W, height: CARD_H };
@@ -31,20 +48,17 @@ export async function renderCard(canvas, card, options = {}) {
   ctx.scale(scale, scale);
   ctx.clearRect(0, 0, CARD_W, CARD_H);
 
-  // 1. Outer border
   const borderColor = FRAME_BORDER_COLORS[card.type] || "#555";
   ctx.fillStyle = borderColor;
   roundRect(ctx, 0, 0, CARD_W, CARD_H, 8);
   ctx.fill();
 
-  // 2. Inner frame
   const frameColor = FRAME_COLORS[card.type] || "#C9B458";
   ctx.fillStyle = frameColor;
   roundRect(ctx, BORDER / 2, BORDER / 2, CARD_W - BORDER, CARD_H - BORDER, 6);
   ctx.fill();
 
-  // 3. Inner card background
-  ctx.fillStyle = darken(frameColor, 0.15);
+  ctx.fillStyle = darken(frameColor, 0.08);
   roundRect(ctx, BORDER, BORDER, CARD_W - BORDER * 2, CARD_H - BORDER * 2, 4);
   ctx.fill();
 
@@ -52,93 +66,130 @@ export async function renderCard(canvas, card, options = {}) {
   drawAttributeIcon(ctx, card);
   drawLevelIndicator(ctx, card);
   await drawImageBox(ctx, card, options);
-  drawTypeLine(ctx, card);
-  drawDescriptionBox(ctx, card);
-  drawStats(ctx, card);
-  drawSetInfo(ctx, card);
+  drawSetCode(ctx, card);
+  drawDescriptionArea(ctx, card);
   drawOverlay(ctx, card);
   if (isLink(card.type)) drawLinkArrows(ctx, card);
 }
 
 function drawNameBar(ctx, card) {
-  const y = BORDER + 6;
-  const x = BORDER + 10;
-  const maxW = CARD_W - BORDER * 2 - ATTR_SIZE - 30;
+  const x = BORDER + 8;
+  const maxW = CARD_W - BORDER * 2 - 50;
 
-  ctx.fillStyle = "rgba(0,0,0,0.35)";
-  roundRect(ctx, BORDER + 4, y - 4, CARD_W - BORDER * 2 - 8, NAME_H, 3);
+  // Dark translucent bar behind name
+  ctx.fillStyle = "rgba(0,0,0,0.25)";
+  roundRect(ctx, BORDER + 3, NAME_Y - 2, CARD_W - BORDER * 2 - 6, NAME_H + 2, 3);
   ctx.fill();
 
-  ctx.fillStyle = card.nameColor || "#FFFFFF";
+  // Thin gold/frame color line at bottom of name bar
+  ctx.fillStyle = "rgba(0,0,0,0.3)";
+  ctx.fillRect(BORDER + 3, NAME_Y + NAME_H - 2, CARD_W - BORDER * 2 - 6, 1);
+
+  ctx.fillStyle = card.nameColor || "#000000";
   ctx.textBaseline = "middle";
-  let fontSize = 22;
+  let fontSize = 24;
   ctx.font = `bold ${fontSize}px 'Outfit', sans-serif`;
   const name = card.name || "Card Name";
   const measured = ctx.measureText(name).width;
   if (measured > maxW) {
-    fontSize = Math.max(12, Math.floor(22 * (maxW / measured)));
+    fontSize = Math.max(12, Math.floor(24 * (maxW / measured)));
     ctx.font = `bold ${fontSize}px 'Outfit', sans-serif`;
   }
-  ctx.fillText(name, x, y + NAME_H / 2, maxW);
+  ctx.fillText(name, x, NAME_Y + NAME_H / 2, maxW);
+  ctx.textBaseline = "alphabetic";
 }
 
 function drawAttributeIcon(ctx, card) {
-  const x = CARD_W - BORDER - ATTR_SIZE - 10;
-  const y = BORDER + 10;
+  const size = 32;
+  const x = CARD_W - BORDER - size - 8;
+  const y = NAME_Y + (NAME_H - size) / 2;
   const color = ATTRIBUTE_COLORS[card.attribute] || "#999";
 
+  // Circle background
   ctx.beginPath();
-  ctx.arc(x + ATTR_SIZE / 2, y + ATTR_SIZE / 2, ATTR_SIZE / 2, 0, Math.PI * 2);
+  ctx.arc(x + size / 2, y + size / 2, size / 2, 0, Math.PI * 2);
   ctx.fillStyle = color;
   ctx.fill();
-  ctx.strokeStyle = "rgba(255,255,255,0.4)";
-  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = "rgba(0,0,0,0.3)";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Inner highlight
+  ctx.beginPath();
+  ctx.arc(x + size / 2, y + size / 2, size / 2 - 2, 0, Math.PI * 2);
+  ctx.strokeStyle = "rgba(255,255,255,0.3)";
+  ctx.lineWidth = 1;
   ctx.stroke();
 
   ctx.fillStyle = "#FFF";
-  ctx.font = "bold 10px 'Outfit', sans-serif";
+  ctx.font = "bold 9px 'Outfit', sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText(card.attribute?.toUpperCase()?.substring(0, 4) || "", x + ATTR_SIZE / 2, y + ATTR_SIZE / 2);
+  ctx.fillText(card.attribute?.toUpperCase()?.substring(0, 4) || "", x + size / 2, y + size / 2);
   ctx.textAlign = "left";
   ctx.textBaseline = "alphabetic";
 }
 
 function drawLevelIndicator(ctx, card) {
-  const y = BORDER + NAME_H + 14;
-
   if (isXyz(card.type) && card.rank) {
+    // Xyz: Rank stars LEFT-aligned
     const count = Math.min(card.rank, 13);
-    const starSize = 16;
-    const totalW = count * starSize;
     const startX = BORDER + 14;
     for (let i = 0; i < count; i++) {
-      drawStar(ctx, startX + i * starSize + starSize / 2, y + 8, starSize / 2 - 1, "#1A1A1A", "#DAA520");
+      drawStar(ctx, startX + i * STAR_SIZE + STAR_SIZE / 2, STAR_Y + STAR_SIZE / 2, STAR_SIZE / 2 - 1, "#1A1A1A", "#DAA520");
     }
-    ctx.fillStyle = "#DAA520";
-    ctx.font = "bold 10px 'Manrope', sans-serif";
-    ctx.fillText("RANK", startX + totalW + 6, y + 11);
   } else if (isLink(card.type) && card.linkRating) {
     ctx.fillStyle = "#00BCD4";
     ctx.font = "bold 14px 'Outfit', sans-serif";
-    ctx.fillText(`LINK-${card.linkRating}`, BORDER + 14, y + 12);
+    ctx.fillText(`LINK-${card.linkRating}`, BORDER + 14, STAR_Y + 14);
   } else if (isMonsterType(card.type) && card.level) {
+    // Normal/Effect: Stars RIGHT-aligned (like real cards)
     const count = Math.min(card.level, 13);
-    const starSize = 16;
-    const totalW = count * starSize;
-    const startX = CARD_W - BORDER - 14 - totalW;
+    const startX = CARD_W - BORDER - 10 - count * STAR_SIZE;
     for (let i = 0; i < count; i++) {
-      drawStar(ctx, startX + i * starSize + starSize / 2, y + 8, starSize / 2 - 1, "#FFD700", "#B8860B");
+      drawLevelStar(ctx, startX + i * STAR_SIZE + STAR_SIZE / 2, STAR_Y + STAR_SIZE / 2, STAR_SIZE / 2 - 1);
     }
   }
 }
 
+function drawLevelStar(ctx, cx, cy, r) {
+  // Outer circle (red/orange gradient look)
+  ctx.beginPath();
+  ctx.arc(cx, cy, r + 1, 0, Math.PI * 2);
+  ctx.fillStyle = "#B22222";
+  ctx.fill();
+
+  // Inner star
+  ctx.beginPath();
+  const points = 5;
+  const outerR = r;
+  const innerR = r * 0.45;
+  for (let i = 0; i < points * 2; i++) {
+    const radius = i % 2 === 0 ? outerR : innerR;
+    const angle = (i * Math.PI) / points - Math.PI / 2;
+    const x = cx + radius * Math.cos(angle);
+    const y = cy + radius * Math.sin(angle);
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+  ctx.fillStyle = "#FFD700";
+  ctx.fill();
+  ctx.strokeStyle = "#DAA520";
+  ctx.lineWidth = 0.5;
+  ctx.stroke();
+}
+
 function drawStar(ctx, cx, cy, r, fill, stroke) {
   ctx.beginPath();
-  for (let i = 0; i < 5; i++) {
-    const angle = (i * 4 * Math.PI) / 5 - Math.PI / 2;
-    const x = cx + r * Math.cos(angle);
-    const y = cy + r * Math.sin(angle);
+  const points = 5;
+  const outerR = r;
+  const innerR = r * 0.45;
+  for (let i = 0; i < points * 2; i++) {
+    const radius = i % 2 === 0 ? outerR : innerR;
+    const angle = (i * Math.PI) / points - Math.PI / 2;
+    const x = cx + radius * Math.cos(angle);
+    const y = cy + radius * Math.sin(angle);
     if (i === 0) ctx.moveTo(x, y);
     else ctx.lineTo(x, y);
   }
@@ -151,27 +202,30 @@ function drawStar(ctx, cx, cy, r, fill, stroke) {
 }
 
 async function drawImageBox(ctx, card, options) {
-  const x = IMG_PAD;
-  const y = IMG_TOP;
-  const w = IMG_SIZE;
-  const h = IMG_SIZE;
+  const x = ART_PAD;
+  const y = ART_TOP;
 
-  // Image frame border
-  ctx.fillStyle = "rgba(0,0,0,0.6)";
-  ctx.fillRect(x - 2, y - 2, w + 4, h + 4);
+  // Image border
+  ctx.fillStyle = "rgba(0,0,0,0.5)";
+  ctx.fillRect(x - 3, y - 3, ART_W + 6, ART_H + 6);
+  ctx.fillStyle = "#C0B080";
+  ctx.fillRect(x - 2, y - 2, ART_W + 4, ART_H + 4);
 
   // Background
   ctx.fillStyle = "#1a1a2e";
-  ctx.fillRect(x, y, w, h);
+  ctx.fillRect(x, y, ART_W, ART_H);
 
-  const imageUrl = card.imageUrl;
+  // Determine which image source to use
+  const localData = options.localImageData;
+  const imageUrl = localData || card.imageUrl;
+
   if (imageUrl) {
     try {
       const img = await loadImage(imageUrl, options);
       if (img) {
         ctx.save();
         ctx.beginPath();
-        ctx.rect(x, y, w, h);
+        ctx.rect(x, y, ART_W, ART_H);
         ctx.clip();
 
         const zoom = card.imageCrop?.zoom || 1;
@@ -179,32 +233,35 @@ async function drawImageBox(ctx, card, options) {
         const offY = card.imageOffset?.y || 0;
 
         const imgRatio = img.width / img.height;
-        const boxRatio = w / h;
+        const boxRatio = ART_W / ART_H;
         let drawW, drawH;
         if (imgRatio > boxRatio) {
-          drawH = h * zoom;
+          drawH = ART_H * zoom;
           drawW = drawH * imgRatio;
         } else {
-          drawW = w * zoom;
+          drawW = ART_W * zoom;
           drawH = drawW / imgRatio;
         }
-        const drawX = x + (w - drawW) / 2 + offX;
-        const drawY = y + (h - drawH) / 2 + offY;
+        const drawX = x + (ART_W - drawW) / 2 + offX;
+        const drawY = y + (ART_H - drawH) / 2 + offY;
         ctx.drawImage(img, drawX, drawY, drawW, drawH);
         ctx.restore();
-      } else {
-        drawImagePlaceholder(ctx, x, y, w, h, "Image failed to load");
+        return; // success
       }
     } catch {
-      drawImagePlaceholder(ctx, x, y, w, h, "Image error");
+      // Fall through to placeholder
     }
+    // Image failed to load - draw placeholder
+    drawImagePlaceholder(ctx, x, y, ART_W, ART_H, "Image could not be loaded");
   } else {
-    drawImagePlaceholder(ctx, x, y, w, h, "No Image");
+    drawImagePlaceholder(ctx, x, y, ART_W, ART_H, "No Image");
   }
 }
 
 function drawImagePlaceholder(ctx, x, y, w, h, text) {
-  ctx.fillStyle = "#555";
+  ctx.fillStyle = "#2a2a3e";
+  ctx.fillRect(x, y, w, h);
+  ctx.fillStyle = "#666";
   ctx.font = "14px 'Manrope', sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
@@ -213,116 +270,177 @@ function drawImagePlaceholder(ctx, x, y, w, h, text) {
   ctx.textBaseline = "alphabetic";
 }
 
-function drawTypeLine(ctx, card) {
-  const y = TYPE_LINE_TOP;
-  const x = IMG_PAD + 4;
-  const maxW = IMG_SIZE - 8;
-
-  let text = "";
-  if (isSpellTrap(card.type)) {
-    const subtype = card.spellTrapType ? ` ${card.spellTrapType.replace(/_/g, "-").toUpperCase()}` : "";
-    text = `[${card.type.toUpperCase()} CARD${subtype}]`;
-  } else {
-    const parts = card.typeLine?.length > 0 ? card.typeLine : ["???"];
-    text = `[${parts.join(" / ")}]`;
+function drawSetCode(ctx, card) {
+  if (card.setCode || card.setNumber) {
+    const setStr = [card.setCode, card.setNumber].filter(Boolean).join("-");
+    ctx.fillStyle = "rgba(0,0,0,0.45)";
+    ctx.font = "9px 'Manrope', sans-serif";
+    ctx.textAlign = "right";
+    ctx.fillText(setStr, CARD_W - ART_PAD, SET_CODE_Y + 8);
+    ctx.textAlign = "left";
   }
-
-  ctx.fillStyle = "rgba(0,0,0,0.25)";
-  roundRect(ctx, IMG_PAD, y - 2, IMG_SIZE, TYPE_LINE_H, 2);
-  ctx.fill();
-
-  ctx.fillStyle = "#111";
-  let fontSize = 12;
-  ctx.font = `bold ${fontSize}px 'Manrope', sans-serif`;
-  const measured = ctx.measureText(text).width;
-  if (measured > maxW) {
-    fontSize = Math.max(7, Math.floor(12 * (maxW / measured)));
-    ctx.font = `bold ${fontSize}px 'Manrope', sans-serif`;
-  }
-  ctx.textBaseline = "middle";
-  ctx.fillText(text, x, y + TYPE_LINE_H / 2, maxW);
-  ctx.textBaseline = "alphabetic";
 }
 
-function drawDescriptionBox(ctx, card) {
-  const x = IMG_PAD;
+function drawDescriptionArea(ctx, card) {
+  const x = DESC_PAD;
   const y = DESC_TOP;
-  const w = IMG_SIZE;
-
-  // Calculate available height: from DESC_TOP to bottom area
+  const w = DESC_W;
+  const h = DESC_H;
   const isMon = isMonsterType(card.type);
-  const bottomReserved = isMon ? STAT_H + SET_H + BOTTOM_PAD + 4 : SET_H + BOTTOM_PAD + 4;
-  const h = CARD_H - BORDER - y - bottomReserved;
 
-  // Box background
-  ctx.fillStyle = "rgba(245, 240, 228, 0.95)";
+  // Cream/beige description box
+  ctx.fillStyle = "rgba(245, 240, 225, 0.95)";
   roundRect(ctx, x, y, w, h, 3);
   ctx.fill();
-
-  ctx.strokeStyle = "rgba(0,0,0,0.3)";
+  ctx.strokeStyle = "rgba(0,0,0,0.25)";
   ctx.lineWidth = 1;
   roundRect(ctx, x, y, w, h, 3);
   ctx.stroke();
 
-  // Text with clipping
-  const padding = 8;
-  const textX = x + padding;
-  const textY = y + padding;
-  const textW = w - padding * 2;
-  const textH = h - padding * 2;
-  const text = card.description || "";
-
+  // Clip all text to box
   ctx.save();
   ctx.beginPath();
-  ctx.rect(x + 2, y + 2, w - 4, h - 4);
+  ctx.rect(x + 1, y + 1, w - 2, h - 2);
   ctx.clip();
 
+  const pad = 7;
+  let cursorY = y + pad;
+
+  // --- Type line ---
+  let typeText = "";
+  if (isSpellTrap(card.type)) {
+    const subtype = card.spellTrapType ? ` ${card.spellTrapType.replace(/_/g, "-").toUpperCase()}` : "";
+    typeText = `[${card.type.toUpperCase()} CARD${subtype}]`;
+  } else {
+    const parts = card.typeLine?.length > 0 ? card.typeLine : ["???"];
+    typeText = `[${parts.join("/")}]`;
+  }
+
   ctx.fillStyle = "#111";
-  const isNormalMonster = card.type === "normal_monster";
-  const baseFontSize = 14;
-  const fontStyle = isNormalMonster ? "italic" : "normal";
+  let typeFontSize = 13;
+  ctx.font = `bold ${typeFontSize}px 'Manrope', sans-serif`;
+  const typeMaxW = w - pad * 2;
+  const typeMeasured = ctx.measureText(typeText).width;
+  if (typeMeasured > typeMaxW) {
+    typeFontSize = Math.max(8, Math.floor(13 * (typeMaxW / typeMeasured)));
+    ctx.font = `bold ${typeFontSize}px 'Manrope', sans-serif`;
+  }
+  cursorY += typeFontSize;
+  ctx.fillText(typeText, x + pad, cursorY, typeMaxW);
+  cursorY += 4;
 
-  wrapText(ctx, text, textX, textY, textW, textH, baseFontSize, fontStyle);
-  ctx.restore();
+  // --- Effect/Description text ---
+  const textTopY = cursorY;
+  const statReserved = isMon ? STAT_H + 6 : 0;
+  const textBottomY = y + h - pad - statReserved;
+  const textH = textBottomY - textTopY;
+  const textW = w - pad * 2;
 
-  // Draw archetypes below description box if any
+  if (card.description) {
+    const isNormalMonster = card.type === "normal_monster";
+    const fontStyle = isNormalMonster ? "italic" : "normal";
+    const manualSize = card.descriptionFontSize;
+    const baseFontSize = manualSize || 14;
+
+    ctx.fillStyle = "#111";
+    wrapText(ctx, card.description, x + pad, textTopY, textW, textH, baseFontSize, fontStyle, !!manualSize);
+  }
+
+  // --- ATK/DEF separator and stats ---
+  if (isMon) {
+    const statY = y + h - pad - STAT_H;
+
+    // Separator line
+    ctx.strokeStyle = "rgba(0,0,0,0.15)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x + pad, statY - 2);
+    ctx.lineTo(x + w - pad, statY - 2);
+    ctx.stroke();
+
+    ctx.fillStyle = "#111";
+    ctx.font = "bold 15px 'Outfit', sans-serif";
+    ctx.textAlign = "right";
+
+    if (isLink(card.type)) {
+      const atkStr = card.atk != null ? String(card.atk) : "?";
+      ctx.fillText(`ATK/${atkStr}`, x + w - pad, statY + 14);
+    } else {
+      const atkStr = card.atk != null ? String(card.atk) : "?";
+      const defStr = card.def != null ? String(card.def) : "?";
+      ctx.fillText(`ATK/${atkStr}  DEF/${defStr}`, x + w - pad, statY + 14);
+    }
+    ctx.textAlign = "left";
+  }
+
+  ctx.restore(); // Unclip
+
+  // --- Archetypes below the box ---
   if (card.archetypes?.length > 0) {
-    const archY = y + h + 2;
     ctx.fillStyle = "rgba(0,0,0,0.4)";
     ctx.font = "bold 8px 'Manrope', sans-serif";
-    const archText = card.archetypes.join(" / ");
-    ctx.fillText(archText, x + 4, archY + 8, w - 8);
+    ctx.fillText(card.archetypes.join(" / "), x + 4, y + h + 10, w - 8);
+  }
+
+  // --- Rarity indicator ---
+  if (card.rarity && card.rarity !== "common") {
+    const raritySymbols = {
+      uncommon: "U", rare: "R", super_rare: "SR", ultra_rare: "UR",
+      secret_rare: "ScR", ultimate_rare: "UtR", holographic_rare: "HgR",
+    };
+    ctx.fillStyle = getRarityColor(card.rarity);
+    ctx.font = "bold 9px 'Outfit', sans-serif";
+    ctx.textAlign = "right";
+    ctx.fillText(raritySymbols[card.rarity] || "", x + w, y + h + 10);
+    ctx.textAlign = "left";
+  }
+
+  // --- Bottom serial area ---
+  const bottomY = CARD_H - BORDER - 10;
+  ctx.fillStyle = "rgba(0,0,0,0.3)";
+  ctx.font = "8px 'Manrope', sans-serif";
+  if (card.setCode) {
+    ctx.fillText(card.setCode, BORDER + 8, bottomY);
   }
 }
 
-function wrapText(ctx, text, x, y, maxW, maxH, baseFontSize, fontStyle) {
+function wrapText(ctx, text, x, y, maxW, maxH, baseFontSize, fontStyle, isManual) {
   if (!text) return;
-
   let fontSize = baseFontSize;
   const minFontSize = 7;
 
-  // Binary search for the best font size that fits
+  if (isManual) {
+    // Manual mode: use exact font size, clip overflow
+    ctx.font = `${fontStyle} ${fontSize}px 'Manrope', sans-serif`;
+    const lineH = fontSize + 3;
+    const lines = computeLines(ctx, text, maxW);
+    let curY = y + fontSize;
+    for (const line of lines) {
+      if (curY > y + maxH) break;
+      ctx.fillText(line, x, curY, maxW);
+      curY += lineH;
+    }
+    return;
+  }
+
+  // Auto mode: find best font size that fits
   while (fontSize >= minFontSize) {
     ctx.font = `${fontStyle} ${fontSize}px 'Manrope', sans-serif`;
     const lineH = fontSize + 3;
-
     const lines = computeLines(ctx, text, maxW);
     const totalH = lines.length * lineH;
-
     if (totalH <= maxH) {
-      // Fits! Draw the lines.
-      let curY = y + fontSize; // first baseline
+      let curY = y + fontSize;
       for (const line of lines) {
         ctx.fillText(line, x, curY, maxW);
         curY += lineH;
       }
       return;
     }
-    // Doesn't fit, try smaller
     fontSize--;
   }
 
-  // At minimum font size, just draw what fits
+  // At minimum, draw what fits
   fontSize = minFontSize;
   ctx.font = `${fontStyle} ${fontSize}px 'Manrope', sans-serif`;
   const lineH = fontSize + 3;
@@ -339,10 +457,7 @@ function computeLines(ctx, text, maxW) {
   const lines = [];
   const paragraphs = text.split("\n");
   for (const para of paragraphs) {
-    if (para.trim() === "") {
-      lines.push("");
-      continue;
-    }
+    if (para.trim() === "") { lines.push(""); continue; }
     const words = para.split(" ");
     let currentLine = "";
     for (const word of words) {
@@ -357,51 +472,6 @@ function computeLines(ctx, text, maxW) {
     if (currentLine) lines.push(currentLine);
   }
   return lines;
-}
-
-function drawStats(ctx, card) {
-  if (!isMonsterType(card.type)) return;
-
-  const y = CARD_H - BORDER - SET_H - STAT_H - BOTTOM_PAD;
-  const rightX = CARD_W - IMG_PAD - 4;
-
-  ctx.fillStyle = "#111";
-  ctx.font = "bold 14px 'Outfit', sans-serif";
-  ctx.textAlign = "right";
-
-  if (isLink(card.type)) {
-    const atkStr = card.atk != null ? String(card.atk) : "?";
-    ctx.fillText(`ATK/${atkStr}`, rightX, y + 16);
-  } else {
-    const atkStr = card.atk != null ? String(card.atk) : "?";
-    const defStr = card.def != null ? String(card.def) : "?";
-    ctx.fillText(`ATK/${atkStr}  DEF/${defStr}`, rightX, y + 16);
-  }
-  ctx.textAlign = "left";
-}
-
-function drawSetInfo(ctx, card) {
-  const y = CARD_H - BORDER - BOTTOM_PAD;
-
-  if (card.setCode || card.setNumber) {
-    ctx.fillStyle = "rgba(0,0,0,0.5)";
-    ctx.font = "10px 'Manrope', sans-serif";
-    const setStr = [card.setCode, card.setNumber].filter(Boolean).join("-");
-    ctx.fillText(setStr, IMG_PAD, y);
-  }
-
-  if (card.rarity && card.rarity !== "common") {
-    const raritySymbols = {
-      uncommon: "U", rare: "R", super_rare: "SR",
-      ultra_rare: "UR", secret_rare: "ScR",
-      ultimate_rare: "UtR", holographic_rare: "HgR",
-    };
-    ctx.fillStyle = getRarityColor(card.rarity);
-    ctx.font = "bold 10px 'Outfit', sans-serif";
-    ctx.textAlign = "right";
-    ctx.fillText(raritySymbols[card.rarity] || "", CARD_W - IMG_PAD, y);
-    ctx.textAlign = "left";
-  }
 }
 
 function getRarityColor(rarity) {
@@ -420,49 +490,25 @@ function drawOverlay(ctx, card) {
     ctx.save();
     ctx.globalCompositeOperation = "overlay";
     if (overlay === "super_foil") {
-      const grad = ctx.createLinearGradient(0, 0, CARD_W, CARD_H);
-      grad.addColorStop(0, "rgba(255,255,255,0)");
-      grad.addColorStop(0.3, "rgba(255,255,255,0.08)");
-      grad.addColorStop(0.5, "rgba(200,200,255,0.12)");
-      grad.addColorStop(0.7, "rgba(255,255,255,0.08)");
-      grad.addColorStop(1, "rgba(255,255,255,0)");
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, CARD_W, CARD_H);
+      const g = ctx.createLinearGradient(0, 0, CARD_W, CARD_H);
+      g.addColorStop(0, "rgba(255,255,255,0)"); g.addColorStop(0.3, "rgba(255,255,255,0.08)");
+      g.addColorStop(0.5, "rgba(200,200,255,0.12)"); g.addColorStop(0.7, "rgba(255,255,255,0.08)");
+      g.addColorStop(1, "rgba(255,255,255,0)");
+      ctx.fillStyle = g; ctx.fillRect(0, 0, CARD_W, CARD_H);
     } else if (overlay === "ultra_foil") {
-      const grad = ctx.createLinearGradient(0, 0, CARD_W, CARD_H);
-      grad.addColorStop(0, "rgba(255,215,0,0)");
-      grad.addColorStop(0.25, "rgba(255,215,0,0.1)");
-      grad.addColorStop(0.5, "rgba(255,255,255,0.15)");
-      grad.addColorStop(0.75, "rgba(255,215,0,0.1)");
-      grad.addColorStop(1, "rgba(255,215,0,0)");
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, CARD_W, CARD_H);
+      const g = ctx.createLinearGradient(0, 0, CARD_W, CARD_H);
+      g.addColorStop(0, "rgba(255,215,0,0)"); g.addColorStop(0.25, "rgba(255,215,0,0.1)");
+      g.addColorStop(0.5, "rgba(255,255,255,0.15)"); g.addColorStop(0.75, "rgba(255,215,0,0.1)");
+      g.addColorStop(1, "rgba(255,215,0,0)");
+      ctx.fillStyle = g; ctx.fillRect(0, 0, CARD_W, CARD_H);
     } else if (overlay === "secret_foil") {
       for (let i = 0; i < 6; i++) {
-        const grad = ctx.createLinearGradient(0, i * (CARD_H / 6), CARD_W, (i + 1) * (CARD_H / 6));
+        const g = ctx.createLinearGradient(0, i * (CARD_H / 6), CARD_W, (i + 1) * (CARD_H / 6));
         const hue = (i * 60) % 360;
-        grad.addColorStop(0, `hsla(${hue}, 80%, 60%, 0)`);
-        grad.addColorStop(0.5, `hsla(${hue}, 80%, 60%, 0.08)`);
-        grad.addColorStop(1, `hsla(${(hue + 60) % 360}, 80%, 60%, 0)`);
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, CARD_W, CARD_H);
+        g.addColorStop(0, `hsla(${hue},80%,60%,0)`); g.addColorStop(0.5, `hsla(${hue},80%,60%,0.08)`);
+        g.addColorStop(1, `hsla(${(hue + 60) % 360},80%,60%,0)`);
+        ctx.fillStyle = g; ctx.fillRect(0, 0, CARD_W, CARD_H);
       }
-    } else if (overlay === "ultimate_foil") {
-      ctx.globalCompositeOperation = "soft-light";
-      const grad = ctx.createRadialGradient(CARD_W / 2, CARD_H / 3, 0, CARD_W / 2, CARD_H / 3, CARD_W);
-      grad.addColorStop(0, "rgba(255,255,255,0.15)");
-      grad.addColorStop(0.5, "rgba(200,200,255,0.08)");
-      grad.addColorStop(1, "rgba(0,0,0,0)");
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, CARD_W, CARD_H);
-    } else if (overlay === "holographic") {
-      ctx.globalCompositeOperation = "color-dodge";
-      const grad = ctx.createLinearGradient(0, 0, CARD_W, CARD_H);
-      ["#ff000010", "#ff880010", "#ffff0010", "#00ff0010", "#0088ff10", "#8800ff10"].forEach((c, i, a) =>
-        grad.addColorStop(i / (a.length - 1), c)
-      );
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, CARD_W, CARD_H);
     }
     ctx.restore();
   }
@@ -470,52 +516,34 @@ function drawOverlay(ctx, card) {
 
 function drawLinkArrows(ctx, card) {
   if (!card.linkArrows || card.linkArrows.length === 0) return;
-  const imgCenterY = IMG_TOP + IMG_SIZE / 2;
-  const arrowPositions = {
-    top_left: { x: IMG_PAD - 2, y: IMG_TOP - 2, angle: -135 },
-    top: { x: CARD_W / 2, y: IMG_TOP - 4, angle: -90 },
-    top_right: { x: CARD_W - IMG_PAD + 2, y: IMG_TOP - 2, angle: -45 },
-    left: { x: IMG_PAD - 4, y: imgCenterY, angle: 180 },
-    right: { x: CARD_W - IMG_PAD + 4, y: imgCenterY, angle: 0 },
-    bottom_left: { x: IMG_PAD - 2, y: IMG_TOP + IMG_SIZE + 2, angle: 135 },
-    bottom: { x: CARD_W / 2, y: IMG_TOP + IMG_SIZE + 4, angle: 90 },
-    bottom_right: { x: CARD_W - IMG_PAD + 2, y: IMG_TOP + IMG_SIZE + 2, angle: 45 },
+  const cY = ART_TOP + ART_H / 2;
+  const pos = {
+    top_left: { x: ART_PAD, y: ART_TOP, a: -135 },
+    top: { x: CARD_W / 2, y: ART_TOP - 4, a: -90 },
+    top_right: { x: CARD_W - ART_PAD, y: ART_TOP, a: -45 },
+    left: { x: ART_PAD - 4, y: cY, a: 180 },
+    right: { x: CARD_W - ART_PAD + 4, y: cY, a: 0 },
+    bottom_left: { x: ART_PAD, y: ART_BOTTOM, a: 135 },
+    bottom: { x: CARD_W / 2, y: ART_BOTTOM + 4, a: 90 },
+    bottom_right: { x: CARD_W - ART_PAD, y: ART_BOTTOM, a: 45 },
   };
-
   for (const arrow of card.linkArrows) {
-    const pos = arrowPositions[arrow];
-    if (!pos) continue;
-    ctx.save();
-    ctx.translate(pos.x, pos.y);
-    ctx.rotate((pos.angle * Math.PI) / 180);
-    ctx.fillStyle = "#FF4444";
-    ctx.beginPath();
-    ctx.moveTo(10, 0);
-    ctx.lineTo(-5, -6);
-    ctx.lineTo(-5, 6);
-    ctx.closePath();
-    ctx.fill();
-    ctx.strokeStyle = "#FFD700";
-    ctx.lineWidth = 1;
-    ctx.stroke();
+    const p = pos[arrow]; if (!p) continue;
+    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate((p.a * Math.PI) / 180);
+    ctx.fillStyle = "#FF4444"; ctx.beginPath();
+    ctx.moveTo(10, 0); ctx.lineTo(-5, -6); ctx.lineTo(-5, 6); ctx.closePath();
+    ctx.fill(); ctx.strokeStyle = "#FFD700"; ctx.lineWidth = 1; ctx.stroke();
     ctx.restore();
   }
 }
 
-// --- Utility ---
-
 function roundRect(ctx, x, y, w, h, r) {
   ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.lineTo(x + w - r, y);
-  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-  ctx.lineTo(x + w, y + h - r);
-  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-  ctx.lineTo(x + r, y + h);
-  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-  ctx.lineTo(x, y + r);
-  ctx.quadraticCurveTo(x, y, x + r, y);
-  ctx.closePath();
+  ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r); ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h); ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r); ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y); ctx.closePath();
 }
 
 function darken(hex, amount) {
@@ -530,14 +558,13 @@ const imageCache = new Map();
 
 function loadImage(url, options = {}) {
   if (!url) return Promise.resolve(null);
+  // Don't try to load "file:" references
+  if (url.startsWith("file:")) return Promise.resolve(null);
 
   const cacheKey = url;
-  if (imageCache.has(cacheKey)) {
-    return Promise.resolve(imageCache.get(cacheKey));
-  }
+  if (imageCache.has(cacheKey)) return Promise.resolve(imageCache.get(cacheKey));
 
   return new Promise((resolve) => {
-    // For data: URIs, load directly
     if (url.startsWith("data:")) {
       const img = new Image();
       img.onload = () => { imageCache.set(cacheKey, img); resolve(img); };
@@ -545,14 +572,12 @@ function loadImage(url, options = {}) {
       img.src = url;
       return;
     }
-
-    // For external URLs, try proxy first (avoids CORS / canvas taint)
+    // External URL: try proxy first
     if (options.proxyUrl) {
       const proxyImg = new Image();
       proxyImg.crossOrigin = "anonymous";
       proxyImg.onload = () => { imageCache.set(cacheKey, proxyImg); resolve(proxyImg); };
       proxyImg.onerror = () => {
-        // Fallback: try direct
         const directImg = new Image();
         directImg.crossOrigin = "anonymous";
         directImg.onload = () => { imageCache.set(cacheKey, directImg); resolve(directImg); };
@@ -561,7 +586,6 @@ function loadImage(url, options = {}) {
       };
       proxyImg.src = options.proxyUrl;
     } else {
-      // No proxy available, try direct
       const img = new Image();
       img.crossOrigin = "anonymous";
       img.onload = () => { imageCache.set(cacheKey, img); resolve(img); };
@@ -571,6 +595,15 @@ function loadImage(url, options = {}) {
   });
 }
 
-export function clearImageCache() {
-  imageCache.clear();
+export function clearImageCache() { imageCache.clear(); }
+
+export function generateThumbnail(canvas) {
+  const thumbCanvas = document.createElement("canvas");
+  const tw = 84;
+  const th = 123;
+  thumbCanvas.width = tw;
+  thumbCanvas.height = th;
+  const tCtx = thumbCanvas.getContext("2d");
+  tCtx.drawImage(canvas, 0, 0, tw, th);
+  return thumbCanvas.toDataURL("image/jpeg", 0.5);
 }

@@ -78,6 +78,33 @@ class YuGiOhCardAPITester:
             return response['id']
         return None
 
+    def test_create_card_with_new_fields(self):
+        """Test creating a card with new descriptionFontSize and thumbnail fields"""
+        card_data = {
+            "name": "Test Card with New Fields",
+            "type": "effect_monster",
+            "attribute": "light",
+            "typeLine": ["Warrior", "Effect"],
+            "level": 4,
+            "atk": 1800,
+            "def": 1600,
+            "description": "A test card with manual font size and thumbnail.",
+            "rarity": "common",
+            "descriptionFontSize": 16,
+            "thumbnail": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/2wBDAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwA/wA=="
+        }
+        success, response = self.run_test("Create Card with New Fields", "POST", "cards", 201, card_data)
+        if success and 'id' in response:
+            self.created_card_ids.append(response['id'])
+            # Verify the new fields are returned
+            if response.get('descriptionFontSize') == 16 and response.get('thumbnail'):
+                self.log("   ✅ New fields (descriptionFontSize, thumbnail) saved and returned correctly")
+                return response['id']
+            else:
+                self.log(f"   ❌ New fields not saved correctly: descriptionFontSize={response.get('descriptionFontSize')}, thumbnail={'present' if response.get('thumbnail') else 'missing'}")
+                return None
+        return None
+
     def test_get_cards_list(self):
         """Test getting cards list with total count"""
         success, response = self.run_test("Get Cards List", "GET", "cards", 200)
@@ -332,6 +359,7 @@ class YuGiOhCardAPITester:
         
         # Test card CRUD operations
         card_id = self.test_create_card()
+        new_fields_card_id = self.test_create_card_with_new_fields()
         self.test_get_cards_list()
         self.test_get_single_card(card_id)
         self.test_update_card(card_id)

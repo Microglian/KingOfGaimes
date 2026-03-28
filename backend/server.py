@@ -54,6 +54,8 @@ class CardBase(BaseModel):
     setCode: str = ""
     setNumber: str = ""
     rarity: str = "common"
+    descriptionFontSize: Optional[int] = None
+    thumbnail: Optional[str] = None
 
     model_config = ConfigDict(populate_by_name=True)
 

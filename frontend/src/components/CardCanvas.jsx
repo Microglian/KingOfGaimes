@@ -1,29 +1,30 @@
-import { forwardRef, useEffect, useRef, useImperativeHandle, useCallback } from "react";
+import { forwardRef, useEffect, useRef, useImperativeHandle } from "react";
 import { renderCard, getCardDimensions } from "@/lib/cardRenderer";
 import { getProxyImageUrl } from "@/lib/api";
 
-const CardCanvas = forwardRef(function CardCanvas({ card, renderTrigger }, ref) {
+const CardCanvas = forwardRef(function CardCanvas({ card, renderTrigger, localImageData }, ref) {
   const canvasRef = useRef(null);
   const cardRef = useRef(card);
+  const localRef = useRef(localImageData);
   const renderIdRef = useRef(0);
 
-  // Always keep cardRef current
   cardRef.current = card;
+  localRef.current = localImageData;
 
   useImperativeHandle(ref, () => canvasRef.current);
 
   useEffect(() => {
     if (!canvasRef.current) return;
-    // Increment render ID to cancel stale renders
     const myRenderId = ++renderIdRef.current;
-    const currentCard = cardRef.current;
-    const proxyUrl = currentCard.imageUrl ? getProxyImageUrl(currentCard.imageUrl) : "";
+    const c = cardRef.current;
+    const local = localRef.current;
+    const proxyUrl = (c.imageUrl && !c.imageUrl.startsWith("file:") && !c.imageUrl.startsWith("data:"))
+      ? getProxyImageUrl(c.imageUrl) : "";
 
-    renderCard(canvasRef.current, currentCard, { scale: 1, proxyUrl }).then(() => {
-      // If a newer render was triggered, this one is stale - ignore
-      if (renderIdRef.current !== myRenderId) return;
-    }).catch(() => {});
-  }, [renderTrigger]); // Only re-render when renderTrigger changes
+    renderCard(canvasRef.current, c, { scale: 1, proxyUrl, localImageData: local })
+      .then(() => { if (renderIdRef.current !== myRenderId) return; })
+      .catch(() => {});
+  }, [renderTrigger]);
 
   const { width, height } = getCardDimensions();
 
@@ -32,11 +33,7 @@ const CardCanvas = forwardRef(function CardCanvas({ card, renderTrigger }, ref) 
       <canvas
         ref={canvasRef}
         data-testid="card-preview-canvas"
-        style={{
-          width: `${width}px`,
-          height: `${height}px`,
-          borderRadius: "8px",
-        }}
+        style={{ width: `${width}px`, height: `${height}px`, borderRadius: "8px" }}
       />
     </div>
   );
