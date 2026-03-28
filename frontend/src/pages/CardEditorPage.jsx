@@ -6,7 +6,7 @@ import { getDefaultCard } from "@/lib/constants";
 import { createCard, updateCard, getCard, getProxyImageUrl } from "@/lib/api";
 import { renderCard, clearImageCache, generateThumbnail } from "@/lib/cardRenderer";
 import { toast } from "sonner";
-import { Download, Save, Copy, RotateCcw, FileJson, Upload } from "lucide-react";
+import { Download, Save, Copy, RotateCcw, FileJson, Upload, ChevronDown } from "lucide-react";
 
 export default function CardEditorPage() {
   const [searchParams] = useSearchParams();
@@ -19,6 +19,7 @@ export default function CardEditorPage() {
   const [renderTrigger, setRenderTrigger] = useState(0);
   const [localImageData, setLocalImageData] = useState(null);
   const [saveImageData, setSaveImageData] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
   const canvasRef = useRef(null);
   const inactivityTimer = useRef(null);
   const autoRenderRef = useRef(autoRender);
@@ -100,16 +101,35 @@ export default function CardEditorPage() {
     navigate("/", { replace: true });
   }, [navigate]);
 
-  const handleExportPng = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) { toast.error("No canvas available"); return; }
-    try {
-      const dataUrl = canvas.toDataURL("image/png");
-      triggerDownload(dataUrl, `${card.name || "card"}.png`);
-    } catch {
-      toast.error("PNG export failed (canvas may be tainted by cross-origin image)");
+  const handleExportPng = useCallback((scale = 1) => {
+    // For standard: use existing canvas (fast, synchronous)
+    if (scale === 1) {
+      const canvas = canvasRef.current;
+      if (!canvas) { toast.error("No canvas available"); return; }
+      try {
+        const dataUrl = canvas.toDataURL("image/png");
+        triggerDownload(dataUrl, `${card.name || "card"}.png`);
+      } catch {
+        toast.error("PNG export failed (canvas may be tainted by cross-origin image)");
+      }
+      return;
     }
-  }, [card.name]);
+    // High-res: render to a new canvas at specified scale
+    toast.info(`Rendering at ${scale}x...`);
+    const exportCanvas = document.createElement("canvas");
+    const proxyUrl = (card.imageUrl && !card.imageUrl.startsWith("file:") && !card.imageUrl.startsWith("data:"))
+      ? getProxyImageUrl(card.imageUrl) : "";
+    renderCard(exportCanvas, card, { scale, proxyUrl, localImageData: localImageDataRef.current })
+      .then(() => {
+        try {
+          const dataUrl = exportCanvas.toDataURL("image/png");
+          triggerDownload(dataUrl, `${card.name || "card"}_${scale}x.png`);
+          toast.success(`Exported at ${scale}x resolution`);
+        } catch {
+          toast.error("PNG export failed");
+        }
+      }).catch(() => toast.error("Render failed"));
+  }, [card]);
 
   const handleExportJson = useCallback(() => {
     const exportCard = { ...card };
@@ -168,10 +188,29 @@ export default function CardEditorPage() {
             className="btn-outline-dark flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs" data-testid="new-card-btn">
             <RotateCcw size={14} /> New
           </button>
-          <button onClick={handleExportPng}
-            className="btn-outline-dark flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs" data-testid="export-png-btn">
-            <Download size={14} /> PNG
-          </button>
+          <div className="relative">
+            <button onClick={() => setShowExportMenu(!showExportMenu)}
+              className="btn-outline-dark flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs" data-testid="export-png-btn">
+              <Download size={14} /> PNG
+              <ChevronDown size={10} />
+            </button>
+            {showExportMenu && (
+              <div className="absolute z-50 top-full left-0 mt-1 rounded-md border border-[#162A3F] py-1 min-w-[160px]" style={{ background: '#0D1D2E' }}>
+                <button onClick={() => { handleExportPng(1); setShowExportMenu(false); }}
+                  className="w-full text-left px-3 py-1.5 text-xs text-[#E2E8F0] hover:bg-[#162A3F]" data-testid="export-png-1x">
+                  Standard (420x614)
+                </button>
+                <button onClick={() => { handleExportPng(2); setShowExportMenu(false); }}
+                  className="w-full text-left px-3 py-1.5 text-xs text-[#E2E8F0] hover:bg-[#162A3F]" data-testid="export-png-2x">
+                  High Res 2x (840x1228)
+                </button>
+                <button onClick={() => { handleExportPng(3); setShowExportMenu(false); }}
+                  className="w-full text-left px-3 py-1.5 text-xs text-[#00E5FF] hover:bg-[#162A3F] font-semibold" data-testid="export-png-3x">
+                  Print Ready 3x (1260x1842)
+                </button>
+              </div>
+            )}
+          </div>
           <button onClick={handleExportJson}
             className="btn-outline-dark flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs" data-testid="export-json-btn">
             <FileJson size={14} /> JSON

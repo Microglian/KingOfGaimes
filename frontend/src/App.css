@@ -188,8 +188,8 @@
 /* Collection Grid */
 .collection-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 20px;
 }
 
 .collection-card {
@@ -208,7 +208,7 @@
 }
 
 .collection-card-preview {
-  aspect-ratio: 59/86;
+  aspect-ratio: 420/614;
   background: #0D1D2E;
   display: flex;
   align-items: center;

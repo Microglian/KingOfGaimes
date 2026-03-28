@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { searchCards, deleteCard, exportAllCards, importCards, getProxyImageUrl } from "@/lib/api";
+import { searchCards, deleteCard, exportAllCards, importCards, getProxyImageUrl, getArchetypes, getSetCodes } from "@/lib/api";
 import { CARD_TYPES, ATTRIBUTES, RARITIES, FRAME_COLORS } from "@/lib/constants";
-import { renderCard, generateThumbnail } from "@/lib/cardRenderer";
+import { renderCard } from "@/lib/cardRenderer";
 import { toast } from "sonner";
 import { Search, Trash2, Edit, Download, Upload, X, SlidersHorizontal, FileJson, Image as ImageIcon } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import SearchableDropdown from "@/components/SearchableDropdown";
 
 const INITIAL_FILTERS = {
   name: "", type: "", attribute: "", rarity: "", archetype: "", setCode: "", typeLine: "",
@@ -21,6 +22,8 @@ export default function CollectionPage() {
   const [filters, setFilters] = useState(INITIAL_FILTERS);
   const [showFilters, setShowFilters] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [archetypeOptions, setArchetypeOptions] = useState([]);
+  const [setCodeOptions, setSetCodeOptions] = useState([]);
   const searchTimer = useRef(null);
 
   const fetchCards = useCallback(async (f) => {
@@ -47,7 +50,12 @@ export default function CollectionPage() {
     }
   }, []);
 
-  useEffect(() => { fetchCards(filters); }, []);
+  // Load cards and meta on mount
+  useEffect(() => {
+    fetchCards(filters);
+    getArchetypes().then(setArchetypeOptions).catch(() => {});
+    getSetCodes().then(setSetCodeOptions).catch(() => {});
+  }, []);
 
   const handleFilterChange = (key, value) => {
     const next = { ...filters, [key]: value };
@@ -63,6 +71,9 @@ export default function CollectionPage() {
       toast.success("Card deleted");
       setDeleteTarget(null);
       fetchCards(filters);
+      // Refresh meta
+      getArchetypes().then(setArchetypeOptions).catch(() => {});
+      getSetCodes().then(setSetCodeOptions).catch(() => {});
     } catch { toast.error("Failed to delete"); }
   };
 
@@ -72,10 +83,8 @@ export default function CollectionPage() {
     try {
       const allCards = await exportAllCards();
       if (!allCards || allCards.length === 0) { toast.error("No cards to export"); return; }
-      // Clean cards for export
       const cleaned = allCards.map(c => { const { thumbnail, ...rest } = c; return rest; });
-      const jsonStr = JSON.stringify(cleaned, null, 2);
-      const blob = new Blob([jsonStr], { type: "application/json" });
+      const blob = new Blob([JSON.stringify(cleaned, null, 2)], { type: "application/json" });
       triggerBlobDownload(blob, "yugioh_collection.json");
       toast.success(`Exported ${cleaned.length} cards`);
     } catch { toast.error("Export failed"); }
@@ -109,6 +118,8 @@ export default function CollectionPage() {
         await importCards(arr);
         toast.success(`Imported ${arr.length} card(s)`);
         fetchCards(filters);
+        getArchetypes().then(setArchetypeOptions).catch(() => {});
+        getSetCodes().then(setSetCodeOptions).catch(() => {});
       } catch { toast.error("Invalid JSON file"); }
     };
     reader.readAsText(file);
@@ -136,6 +147,7 @@ export default function CollectionPage() {
           </div>
         </div>
 
+        {/* Search & Filters */}
         <div className="mb-6 space-y-3">
           <div className="flex items-center gap-2">
             <div className="relative flex-1">
@@ -146,7 +158,7 @@ export default function CollectionPage() {
             <button onClick={() => setShowFilters(!showFilters)}
               className={`btn-outline-dark flex items-center gap-1.5 px-3 py-2 rounded-md text-xs ${showFilters || hasActiveFilters ? '!border-[#00E5FF] !text-[#00E5FF]' : ''}`}
               data-testid="toggle-filters-btn">
-              <SlidersHorizontal size={14} /> Filters {hasActiveFilters && `(active)`}
+              <SlidersHorizontal size={14} /> Filters {hasActiveFilters && "(active)"}
             </button>
           </div>
 
@@ -157,15 +169,25 @@ export default function CollectionPage() {
               <FilterSelect label="Rarity" value={filters.rarity} onChange={(v) => handleFilterChange("rarity", v)} testId="filter-rarity" options={RARITIES} allLabel="All Rarities" />
               <FilterSelect label="Sort By" value={filters.sort} onChange={(v) => handleFilterChange("sort", v)} testId="filter-sort"
                 options={[{ value: "updatedAt", label: "Last Updated" },{ value: "createdAt", label: "Created" },{ value: "name", label: "Name" },{ value: "rarity", label: "Rarity" }]} />
-              <div className="w-36">
+              <div className="w-40">
                 <label className="form-label">Archetype</label>
-                <input type="text" value={filters.archetype} onChange={(e) => handleFilterChange("archetype", e.target.value)}
-                  placeholder="e.g. Blue-Eyes" className="form-input-dark w-full h-8 px-2 rounded-md text-xs border" data-testid="filter-archetype" />
+                <SearchableDropdown
+                  options={archetypeOptions}
+                  value={filters.archetype}
+                  onChange={(v) => handleFilterChange("archetype", v)}
+                  placeholder="All Archetypes"
+                  testId="filter-archetype"
+                />
               </div>
-              <div className="w-32">
+              <div className="w-36">
                 <label className="form-label">Set Code</label>
-                <input type="text" value={filters.setCode} onChange={(e) => handleFilterChange("setCode", e.target.value)}
-                  placeholder="e.g. LOB" className="form-input-dark w-full h-8 px-2 rounded-md text-xs border" data-testid="filter-set-code" />
+                <SearchableDropdown
+                  options={setCodeOptions}
+                  value={filters.setCode}
+                  onChange={(v) => handleFilterChange("setCode", v)}
+                  placeholder="All Set Codes"
+                  testId="filter-set-code"
+                />
               </div>
               <div className="w-36">
                 <label className="form-label">Type Line</label>
@@ -180,6 +202,7 @@ export default function CollectionPage() {
           )}
         </div>
 
+        {/* Card Grid */}
         {loading ? (
           <div className="text-center py-20 text-[#8BA0B2]" data-testid="loading-indicator">Loading...</div>
         ) : cards.length === 0 ? (
@@ -234,22 +257,23 @@ function CollectionCard({ card, onEdit, onDelete, onExportJson, onExportPng }) {
   const frameColor = FRAME_COLORS[card.type] || "#555";
 
   useEffect(() => {
-    // Use thumbnail if available, otherwise render
-    if (card.thumbnail && canvasRef.current && !rendered.current) {
-      rendered.current = true;
+    if (!canvasRef.current || rendered.current) return;
+    rendered.current = true;
+
+    if (card.thumbnail) {
+      // Use saved thumbnail (fast)
       const img = new window.Image();
       img.onload = () => {
-        const ctx = canvasRef.current.getContext("2d");
+        const ctx = canvasRef.current?.getContext("2d");
+        if (!ctx) return;
         canvasRef.current.width = img.width;
         canvasRef.current.height = img.height;
         ctx.drawImage(img, 0, 0);
       };
       img.src = card.thumbnail;
-    } else if (canvasRef.current && !rendered.current) {
-      rendered.current = true;
-      const proxyUrl = (card.imageUrl && !card.imageUrl.startsWith("file:") && !card.imageUrl.startsWith("data:"))
-        ? getProxyImageUrl(card.imageUrl) : "";
-      renderCard(canvasRef.current, card, { scale: 0.4, proxyUrl }).catch(() => {});
+    } else {
+      // No thumbnail, render at small scale (no image data available from list endpoint)
+      renderCard(canvasRef.current, card, { scale: 0.4 }).catch(() => {});
     }
   }, [card]);
 

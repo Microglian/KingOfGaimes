@@ -48,7 +48,18 @@ export async function exportAllCards() {
 
 export function getProxyImageUrl(url) {
   if (!url) return "";
+  if (url.startsWith("data:") || url.startsWith("file:")) return "";
   return `${API}/proxy-image?url=${encodeURIComponent(url)}`;
+}
+
+export async function getArchetypes() {
+  const { data } = await api.get("/cards/meta/archetypes");
+  return data;
+}
+
+export async function getSetCodes() {
+  const { data } = await api.get("/cards/meta/set-codes");
+  return data;
 }
 
 function preparePayload(card) {

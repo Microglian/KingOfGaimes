@@ -77,10 +77,14 @@ class CardListResponse(BaseModel):
 
 # --- Helpers ---
 
-def card_doc_to_response(doc: dict) -> dict:
+def card_doc_to_response(doc: dict, strip_heavy=False) -> dict:
     doc.pop("_id", None)
     if "def_" in doc:
         doc["def"] = doc.pop("def_")
+    if strip_heavy:
+        url = doc.get("imageUrl", "")
+        if url and url.startswith("data:"):
+            doc["imageUrl"] = "data:stored"
     return doc
 
 # --- Startup ---
@@ -109,7 +113,6 @@ async def root():
 async def create_card(card: CardCreate):
     now = datetime.now(timezone.utc).isoformat()
     doc = card.model_dump(by_alias=True)
-    # Handle the def alias
     if "def" in doc:
         doc["def_"] = doc.pop("def")
     doc["id"] = str(uuid.uuid4())
@@ -152,16 +155,43 @@ async def search_cards(
     sort_field = sort if sort in ["name", "createdAt", "updatedAt", "rarity"] else "updatedAt"
 
     total = await db.cards.count_documents(query)
-    cursor = db.cards.find(query, {"_id": 0}).sort(sort_field, sort_dir).skip(skip).limit(limit)
+    # Exclude heavy imageUrl data from list queries - only fetch what's needed
+    projection = {"_id": 0, "imageUrl": 0}
+    cursor = db.cards.find(query, projection).sort(sort_field, sort_dir).skip(skip).limit(limit)
     cards = await cursor.to_list(limit)
-    
+
     result_cards = []
     for c in cards:
+        c.setdefault("imageUrl", "")
         result_cards.append(card_doc_to_response(c))
 
     return {"cards": result_cards, "total": total}
 
-# --- Import/Export (defined before {card_id} routes) ---
+# --- Meta endpoints (before card_id routes) ---
+
+@api_router.get("/cards/meta/archetypes")
+async def get_archetypes():
+    pipeline = [
+        {"$unwind": "$archetypes"},
+        {"$group": {"_id": "$archetypes"}},
+        {"$sort": {"_id": 1}},
+        {"$limit": 500},
+    ]
+    results = await db.cards.aggregate(pipeline).to_list(500)
+    return [r["_id"] for r in results if r["_id"]]
+
+@api_router.get("/cards/meta/set-codes")
+async def get_set_codes():
+    pipeline = [
+        {"$match": {"setCode": {"$ne": ""}}},
+        {"$group": {"_id": "$setCode"}},
+        {"$sort": {"_id": 1}},
+        {"$limit": 500},
+    ]
+    results = await db.cards.aggregate(pipeline).to_list(500)
+    return [r["_id"] for r in results if r["_id"]]
+
+# --- Import/Export (before card_id routes) ---
 
 @api_router.post("/cards/import", response_model=List[CardResponse], status_code=201)
 async def import_cards(cards: List[CardCreate]):
@@ -180,13 +210,14 @@ async def import_cards(cards: List[CardCreate]):
 
 @api_router.get("/cards/export/all")
 async def export_all_cards():
-    cards = await db.cards.find({}, {"_id": 0}).to_list(10000)
+    # Exclude thumbnails from export (they're large and regeneratable)
+    cards = await db.cards.find({}, {"_id": 0, "thumbnail": 0}).to_list(10000)
     result = []
     for c in cards:
         result.append(card_doc_to_response(c))
     return result
 
-# --- Single card routes ---
+# --- Single card routes (full data including imageUrl) ---
 
 @api_router.get("/cards/{card_id}", response_model=CardResponse)
 async def get_card(card_id: str):
@@ -200,15 +231,12 @@ async def update_card(card_id: str, card: CardUpdate):
     existing = await db.cards.find_one({"id": card_id}, {"_id": 0})
     if not existing:
         raise HTTPException(status_code=404, detail="Card not found")
-    
     now = datetime.now(timezone.utc).isoformat()
     update_data = card.model_dump(by_alias=True)
     if "def" in update_data:
         update_data["def_"] = update_data.pop("def")
     update_data["updatedAt"] = now
-    
     await db.cards.update_one({"id": card_id}, {"$set": update_data})
-    
     updated = await db.cards.find_one({"id": card_id}, {"_id": 0})
     return card_doc_to_response(updated)
 
@@ -219,7 +247,7 @@ async def delete_card(card_id: str):
         raise HTTPException(status_code=404, detail="Card not found")
     return {"message": "Card deleted", "id": card_id}
 
-# --- Image Proxy (for CORS) ---
+# --- Image Proxy ---
 
 @api_router.get("/proxy-image")
 async def proxy_image(url: str = Query(...)):
@@ -247,8 +275,5 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)

@@ -599,11 +599,11 @@ export function clearImageCache() { imageCache.clear(); }
 
 export function generateThumbnail(canvas) {
   const thumbCanvas = document.createElement("canvas");
-  const tw = 84;
-  const th = 123;
+  const tw = 168;
+  const th = 245;
   thumbCanvas.width = tw;
   thumbCanvas.height = th;
   const tCtx = thumbCanvas.getContext("2d");
   tCtx.drawImage(canvas, 0, 0, tw, th);
-  return thumbCanvas.toDataURL("image/jpeg", 0.5);
+  return thumbCanvas.toDataURL("image/jpeg", 0.6);
 }
