@@ -24,9 +24,11 @@ export default function CollectionPage() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [archetypeOptions, setArchetypeOptions] = useState([]);
   const [setCodeOptions, setSetCodeOptions] = useState([]);
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 24;
   const searchTimer = useRef(null);
 
-  const fetchCards = useCallback(async (f) => {
+  const fetchCards = useCallback(async (f, pg = 0) => {
     setLoading(true);
     try {
       const params = {};
@@ -39,7 +41,8 @@ export default function CollectionPage() {
       if (f.typeLine) params.typeLine = f.typeLine;
       params.sort = f.sort;
       params.order = f.order;
-      params.limit = 200;
+      params.limit = PAGE_SIZE;
+      params.skip = pg * PAGE_SIZE;
       const result = await searchCards(params);
       setCards(result.cards);
       setTotal(result.total);
@@ -52,7 +55,7 @@ export default function CollectionPage() {
 
   // Load cards and meta on mount
   useEffect(() => {
-    fetchCards(filters);
+    fetchCards(filters, 0);
     getArchetypes().then(setArchetypeOptions).catch(() => {});
     getSetCodes().then(setSetCodeOptions).catch(() => {});
   }, []);
@@ -60,8 +63,15 @@ export default function CollectionPage() {
   const handleFilterChange = (key, value) => {
     const next = { ...filters, [key]: value };
     setFilters(next);
+    setPage(0);
     clearTimeout(searchTimer.current);
-    searchTimer.current = setTimeout(() => fetchCards(next), 300);
+    searchTimer.current = setTimeout(() => fetchCards(next, 0), 300);
+  };
+
+  const handlePageChange = (newPage) => {
+    setPage(newPage);
+    fetchCards(filters, newPage);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleDelete = async () => {
@@ -70,8 +80,7 @@ export default function CollectionPage() {
       await deleteCard(deleteTarget.id);
       toast.success("Card deleted");
       setDeleteTarget(null);
-      fetchCards(filters);
-      // Refresh meta
+      fetchCards(filters, page);
       getArchetypes().then(setArchetypeOptions).catch(() => {});
       getSetCodes().then(setSetCodeOptions).catch(() => {});
     } catch { toast.error("Failed to delete"); }
@@ -117,7 +126,7 @@ export default function CollectionPage() {
         const arr = Array.isArray(data) ? data : [data];
         await importCards(arr);
         toast.success(`Imported ${arr.length} card(s)`);
-        fetchCards(filters);
+        fetchCards(filters, page);
         getArchetypes().then(setArchetypeOptions).catch(() => {});
         getSetCodes().then(setSetCodeOptions).catch(() => {});
       } catch { toast.error("Invalid JSON file"); }
@@ -194,7 +203,7 @@ export default function CollectionPage() {
                 <input type="text" value={filters.typeLine} onChange={(e) => handleFilterChange("typeLine", e.target.value)}
                   placeholder="e.g. Dragon" className="form-input-dark w-full h-8 px-2 rounded-md text-xs border" data-testid="filter-type-line" />
               </div>
-              <button onClick={() => { setFilters(INITIAL_FILTERS); fetchCards(INITIAL_FILTERS); }}
+              <button onClick={() => { setFilters(INITIAL_FILTERS); setPage(0); fetchCards(INITIAL_FILTERS, 0); }}
                 className="text-xs text-[#8BA0B2] hover:text-[#00E5FF] transition-colors flex items-center gap-1 pb-1" data-testid="clear-filters-btn">
                 <X size={12} /> Clear All
               </button>
@@ -216,6 +225,31 @@ export default function CollectionPage() {
               <CollectionCard key={c.id} card={c} onEdit={handleEdit} onDelete={setDeleteTarget}
                 onExportJson={handleExportCardJson} onExportPng={handleExportCardPng} />
             ))}
+          </div>
+        )}
+
+        {/* Pagination */}
+        {total > PAGE_SIZE && (
+          <div className="flex items-center justify-center gap-3 mt-8" data-testid="pagination">
+            <button
+              onClick={() => handlePageChange(page - 1)}
+              disabled={page === 0}
+              className="btn-outline-dark px-4 py-2 rounded-md text-xs disabled:opacity-30 disabled:cursor-not-allowed"
+              data-testid="prev-page-btn"
+            >
+              Previous
+            </button>
+            <span className="text-sm text-[#8BA0B2]" data-testid="page-info">
+              Page {page + 1} of {Math.ceil(total / PAGE_SIZE)}
+            </span>
+            <button
+              onClick={() => handlePageChange(page + 1)}
+              disabled={(page + 1) * PAGE_SIZE >= total}
+              className="btn-outline-dark px-4 py-2 rounded-md text-xs disabled:opacity-30 disabled:cursor-not-allowed"
+              data-testid="next-page-btn"
+            >
+              Next
+            </button>
           </div>
         )}
       </div>

@@ -20,6 +20,7 @@ export default function CardEditorPage() {
   const [localImageData, setLocalImageData] = useState(null);
   const [saveImageData, setSaveImageData] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [fullscreenPreview, setFullscreenPreview] = useState(null);
   const canvasRef = useRef(null);
   const inactivityTimer = useRef(null);
   const autoRenderRef = useRef(autoRender);
@@ -166,6 +167,21 @@ export default function CardEditorPage() {
     e.target.value = "";
   }, []);
 
+  const handleFullscreenPreview = useCallback(() => {
+    const exportCanvas = document.createElement("canvas");
+    const proxyUrl = (card.imageUrl && !card.imageUrl.startsWith("file:") && !card.imageUrl.startsWith("data:"))
+      ? getProxyImageUrl(card.imageUrl) : "";
+    renderCard(exportCanvas, card, { scale: 3, proxyUrl, localImageData: localImageDataRef.current })
+      .then(() => {
+        try {
+          const dataUrl = exportCanvas.toDataURL("image/png");
+          setFullscreenPreview(dataUrl);
+        } catch {
+          toast.error("Could not generate preview");
+        }
+      }).catch(() => toast.error("Render failed"));
+  }, [card]);
+
   const showReuploadHint = card.imageUrl?.startsWith("file:") && !localImageData;
 
   return (
@@ -240,7 +256,9 @@ export default function CardEditorPage() {
 
       <div className="preview-panel" data-testid="preview-panel">
         <div className="flex flex-col items-center gap-4">
-          <CardCanvas ref={canvasRef} card={card} renderTrigger={renderTrigger} localImageData={localImageData} />
+          <div onClick={handleFullscreenPreview} className="cursor-zoom-in" title="Click to view full resolution">
+            <CardCanvas ref={canvasRef} card={card} renderTrigger={renderTrigger} localImageData={localImageData} />
+          </div>
           <div className="flex items-center gap-4 relative z-10">
             <label className="flex items-center gap-2 text-xs text-[#8BA0B2] cursor-pointer">
               <input type="checkbox" checked={autoRender} onChange={(e) => setAutoRender(e.target.checked)}
@@ -253,8 +271,33 @@ export default function CardEditorPage() {
               </button>
             )}
           </div>
+          <p className="text-[0.6rem] text-[#4A6478] relative z-10">Click card to view full resolution</p>
         </div>
       </div>
+
+      {/* Fullscreen high-res preview */}
+      {fullscreenPreview && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 backdrop-blur-sm cursor-zoom-out"
+          onClick={() => setFullscreenPreview(null)}
+          data-testid="fullscreen-preview-overlay"
+        >
+          <img
+            src={fullscreenPreview}
+            alt="High resolution card preview"
+            className="max-h-[95vh] max-w-[95vw] object-contain rounded-lg"
+            style={{ filter: "drop-shadow(0 0 60px rgba(0,85,255,0.3))" }}
+            data-testid="fullscreen-preview-image"
+          />
+          <button
+            className="absolute top-6 right-6 text-white/70 hover:text-white text-2xl font-bold transition-colors"
+            onClick={() => setFullscreenPreview(null)}
+            data-testid="fullscreen-close-btn"
+          >
+            ✕
+          </button>
+        </div>
+      )}
     </div>
   );
 }

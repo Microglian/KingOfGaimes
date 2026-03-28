@@ -339,6 +339,101 @@ class YuGiOhCardAPITester:
                     return False
         return False
 
+    def test_pagination_parameters(self):
+        """Test pagination with skip and limit parameters"""
+        # Test basic pagination
+        success, response = self.run_test("Pagination - First Page", "GET", "cards", 200, params={"limit": 5, "skip": 0})
+        if not success:
+            return False
+        
+        if 'cards' not in response or 'total' not in response:
+            self.log("   Missing 'cards' or 'total' in pagination response")
+            return False
+        
+        first_page_cards = response['cards']
+        total_cards = response['total']
+        self.log(f"   First page: {len(first_page_cards)} cards, Total: {total_cards}")
+        
+        if len(first_page_cards) > 5:
+            self.log(f"   ❌ Expected max 5 cards, got {len(first_page_cards)}")
+            return False
+        
+        # Test second page if we have enough cards
+        if total_cards > 5:
+            success, response = self.run_test("Pagination - Second Page", "GET", "cards", 200, params={"limit": 5, "skip": 5})
+            if not success:
+                return False
+            
+            second_page_cards = response['cards']
+            self.log(f"   Second page: {len(second_page_cards)} cards")
+            
+            # Verify different cards on different pages
+            if first_page_cards and second_page_cards:
+                first_ids = {c.get('id') for c in first_page_cards}
+                second_ids = {c.get('id') for c in second_page_cards}
+                if first_ids & second_ids:
+                    self.log("   ❌ Found duplicate cards between pages")
+                    return False
+                else:
+                    self.log("   ✅ No duplicate cards between pages")
+        
+        # Test edge cases
+        success, response = self.run_test("Pagination - Large Skip", "GET", "cards", 200, params={"limit": 10, "skip": 1000})
+        if success and response.get('cards') == []:
+            self.log("   ✅ Large skip returns empty array correctly")
+        
+        return True
+
+    def test_meta_endpoints(self):
+        """Test meta endpoints for archetypes and set codes"""
+        # Test archetypes endpoint
+        success, response = self.run_test("Get Archetypes", "GET", "cards/meta/archetypes", 200)
+        if not success:
+            return False
+        
+        if not isinstance(response, list):
+            self.log("   ❌ Archetypes response is not a list")
+            return False
+        
+        self.log(f"   Found {len(response)} archetypes")
+        
+        # Test set codes endpoint
+        success, response = self.run_test("Get Set Codes", "GET", "cards/meta/set-codes", 200)
+        if not success:
+            return False
+        
+        if not isinstance(response, list):
+            self.log("   ❌ Set codes response is not a list")
+            return False
+        
+        self.log(f"   Found {len(response)} set codes")
+        return True
+
+    def test_pagination_with_filters(self):
+        """Test pagination combined with filters"""
+        # Test pagination with name filter
+        success, response = self.run_test("Pagination with Name Filter", "GET", "cards", 200, 
+                                        params={"name": "test", "limit": 3, "skip": 0})
+        if not success:
+            return False
+        
+        if 'cards' not in response or 'total' not in response:
+            self.log("   Missing 'cards' or 'total' in filtered pagination response")
+            return False
+        
+        filtered_cards = response['cards']
+        filtered_total = response['total']
+        self.log(f"   Filtered pagination: {len(filtered_cards)} cards, Total matching: {filtered_total}")
+        
+        # Verify all returned cards match the filter
+        for card in filtered_cards:
+            if 'test' not in card.get('name', '').lower():
+                self.log(f"   ❌ Card '{card.get('name')}' doesn't match name filter")
+                return False
+        
+        self.log("   ✅ All cards match the filter criteria")
+        return True
+
     def cleanup_created_cards(self):
         """Clean up cards created during testing"""
         self.log("🧹 Cleaning up created test cards...")
@@ -377,6 +472,11 @@ class YuGiOhCardAPITester:
         self.test_archetype_filter()
         self.test_set_code_filter()
         self.test_type_line_filter()
+        
+        # Test pagination functionality
+        self.test_pagination_parameters()
+        self.test_meta_endpoints()
+        self.test_pagination_with_filters()
         
         # Test delete (do this last to keep cards for other tests)
         if card_id:
