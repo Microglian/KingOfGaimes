@@ -14,39 +14,39 @@ const ART_SIZE = 613; // Square: 613x613 at 1x, 1226x1226 at 2x
 
 // ─── Description box (cream area in frame) ───────────────────────────────────
 const DESC_X = 73;
-const DESC_Y = 893;
+const DESC_Y = 889;
 const DESC_W = 668;
-const DESC_H = 210;
+const DESC_H = 222;
 
 // ─── Star row ────────────────────────────────────────────────────────────────
 const STAR_IMG_SIZE = 55;
-const STAR_Y_CENTER = 160;
-const STAR_ROW_LEFT = ART_X;
-const STAR_ROW_WIDTH = ART_SIZE;
+const STAR_Y_CENTER = 180;
+const STAR_ROW_LEFT = 86;    // Frame left edge (not art window)
+const STAR_ROW_WIDTH = 642;  // Frame width (813 - 86*2 ≈ 642)
 const MAX_STARS = 13;
 
 // ─── Text positions (at 1x) ─────────────────────────────────────────────────
 const NAME_X = 57;
-const NAME_Y_CENTER = 70;
+const NAME_Y_CENTER = 88;
 const NAME_MAX_W = 640;
 
 const SET_CODE_RIGHT_X = 735;
-const SET_CODE_Y = 858;
+const SET_CODE_Y = 872;
 
 const TYPE_LINE_X = 73;
 const TYPE_LINE_Y = 915;
 const TYPE_LINE_MAX_W = 650;
 
 const EFFECT_X = 73;
-const EFFECT_Y_START = 938;
+const EFFECT_Y_START = 920;
 const EFFECT_W = 668;
 
-const ATK_VALUE_X = 530;
-const DEF_VALUE_X = 685;
-const STAT_VALUE_Y = 1090;
+const ATK_VALUE_X = 510;  // Just after ATKLabel right edge (507)
+const DEF_VALUE_X = 675;  // Just after DEFLabel right edge (672)
+const STAT_VALUE_Y = 1105; // Aligned with label baseline (labels at Y 1083-1106)
 
 const ARCHETYPE_RIGHT_X = 740;
-const ARCHETYPE_Y = 1140;
+const ARCHETYPE_Y = 1148;
 
 // ─── Font families ───────────────────────────────────────────────────────────
 const FALLBACK_SERIF = "'Palatino Linotype', Palatino, Georgia, serif";
@@ -457,7 +457,7 @@ function drawSetCode(ctx, card, s) {
 
   ctx.save();
   ctx.fillStyle = "#111";
-  ctx.font = `${14 * s}px ${FONT_EFFECT_TEXT}`;
+  ctx.font = `${17 * s}px ${FONT_EFFECT_TEXT}`;
   ctx.textAlign = "right";
   ctx.textBaseline = "alphabetic";
   ctx.fillText(setStr, SET_CODE_RIGHT_X * s, SET_CODE_Y * s);
@@ -480,7 +480,7 @@ function drawTypeLine(ctx, card, s) {
   const x = TYPE_LINE_X * s;
   const y = TYPE_LINE_Y * s;
   const maxW = TYPE_LINE_MAX_W * s;
-  let fontSize = 22 * s;
+  let fontSize = 26 * s;
 
   ctx.save();
   ctx.fillStyle = "#111";
@@ -531,13 +531,13 @@ function drawStatValues(ctx, card, s) {
   ctx.fillStyle = "#111";
   ctx.font = `bold ${fontSize}px ${FONT_STAT}`;
   ctx.textBaseline = "alphabetic";
+  ctx.textAlign = "left";
 
-  // ATK value
+  // ATK value (left-aligned, right after ATKLabel template text)
   const atkStr = card.atk != null ? String(card.atk) : "?";
-  ctx.textAlign = "center";
   ctx.fillText(atkStr, ATK_VALUE_X * s, y);
 
-  // DEF or LINK value
+  // DEF or LINK value (left-aligned, right after DEFLabel/LINKLabel template text)
   if (isLink(card.type)) {
     const linkStr = card.linkRating != null ? String(card.linkRating) : "?";
     ctx.fillText(linkStr, DEF_VALUE_X * s, y);

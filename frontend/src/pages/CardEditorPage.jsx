@@ -42,7 +42,12 @@ export default function CardEditorPage() {
     }
   }, [editId]);
 
-  useEffect(() => { setRenderTrigger((t) => t + 1); }, []);
+  useEffect(() => {
+    // Skip initial render if we're about to load a card from the API
+    if (!editId) {
+      setRenderTrigger((t) => t + 1);
+    }
+  }, [editId]);
 
   const handleCardChange = useCallback((field, value) => {
     setCard((prev) => ({ ...prev, [field]: value }));

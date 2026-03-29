@@ -34,9 +34,11 @@ A web-based application for creating, editing, storing, searching, and exporting
 - README fully updated with template/font setup instructions
 
 ## Template Files Status
-Only a subset of templates are currently uploaded:
-- Border.png, FrameNormal.png, AttributeLight.png, LevelStarCropped.png, RankStarCropped.png
+Currently uploaded templates:
+- Border.png, FrameNormal.png, FrameSpell.png, AttributeLight.png
+- LevelStarCropped.png, RankStarCropped.png
 - SpellTypeBase.png, STTypeQuick.png, LinkArrowDown.png
+- ATKDEFDiv.png, ATKLabel.png, DEFLabel.png
 - **User needs to add remaining templates via GitHub** (full list in README and templates/TEMPLATES_README.md)
 
 ## Backlog
