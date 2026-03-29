@@ -35,8 +35,8 @@ const SET_CODE_Y = 861;       // Centered between art bottom (832) and desc top 
 const RARITY_LEFT_X = 73;     // Left-aligned, opposite side of set code
 
 // Link monsters: move set code/rarity inward to avoid link arrow overlap
-const LINK_SET_CODE_RIGHT_X = 683;
-const LINK_RARITY_LEFT_X = 130;
+const LINK_SET_CODE_RIGHT_X = 659;
+const LINK_RARITY_LEFT_X = 157;
 
 // Rarity mark styling
 const RARITY_MARKS = {
@@ -481,15 +481,15 @@ function drawSetCode(ctx, card, s) {
   const isLinkType = isLink(card.type);
   const y = SET_CODE_Y * s;
   const fontSize = 26 * s;
+  const nameColor = card.nameColor || "#000000";
 
-  // Positions depend on card type (link monsters use inset positions)
   const codeRightX = (isLinkType ? LINK_SET_CODE_RIGHT_X : SET_CODE_RIGHT_X) * s;
   const rarityLeftX = (isLinkType ? LINK_RARITY_LEFT_X : RARITY_LEFT_X) * s;
 
-  // Draw set code (right-aligned)
+  // Draw set code (right-aligned, same color as name)
   if (setStr) {
     ctx.save();
-    ctx.fillStyle = "#111";
+    ctx.fillStyle = nameColor;
     ctx.font = `${fontSize}px ${FONT_SET_CODE}`;
     ctx.textAlign = "right";
     ctx.textBaseline = "middle";
@@ -497,14 +497,20 @@ function drawSetCode(ctx, card, s) {
     ctx.restore();
   }
 
-  // Draw rarity mark (left-aligned, opposite side)
+  // Draw rarity mark (left-aligned, with black outline)
   const rarityInfo = RARITY_MARKS[card.rarity];
   if (rarityInfo) {
     ctx.save();
-    ctx.fillStyle = rarityInfo.color;
     ctx.font = `bold ${fontSize}px ${FONT_SET_CODE}`;
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
+    // Black outline
+    ctx.strokeStyle = "#000";
+    ctx.lineWidth = 3 * s;
+    ctx.lineJoin = "round";
+    ctx.strokeText(rarityInfo.text, rarityLeftX, y);
+    // Colored fill
+    ctx.fillStyle = rarityInfo.color;
     ctx.fillText(rarityInfo.text, rarityLeftX, y);
     ctx.restore();
   }
@@ -666,10 +672,10 @@ function drawArchetypes(ctx, card, s) {
   const y = ARCHETYPE_Y_CENTER * s;
 
   ctx.save();
-  ctx.fillStyle = "#111";
-  ctx.font = `bold ${18 * s}px ${FONT_ARCHETYPE}`; // Was 16, +12%
+  ctx.fillStyle = card.nameColor || "#000000";
+  ctx.font = `bold ${18 * s}px ${FONT_ARCHETYPE}`;
   ctx.textAlign = "right";
-  ctx.textBaseline = "middle"; // Vertically centered between desc bottom and border
+  ctx.textBaseline = "middle";
   ctx.fillText(text, x, y);
   ctx.restore();
 }
