@@ -622,8 +622,9 @@ async function drawStatValues(ctx, card, s) {
   const defValW = ctx.measureText(defStr).width;
 
   // Pad short values (< 4 digits) with one character width of right margin
+  // Exception: link rating is never padded
   const padW = ctx.measureText("0").width;
-  const defPad = defStr.length < 4 ? padW : 0;
+  const defPad = (!isLinkType && defStr.length < 4) ? padW : 0;
   const atkPad = atkStr.length < 4 ? padW : 0;
 
   // Calculate dynamic layout (right to left)
