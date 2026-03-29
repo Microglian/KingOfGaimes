@@ -11,7 +11,12 @@ import ImageControls from "@/components/ImageControls";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useState } from "react";
 
-const SYMBOLS = ["\u25CF", "\u2605", "\u25C6", "\u25A0", "\u25B2", "\u2666", "\u2460", "\u2461", "\u2462", "\u2463", "\u2464", "\u221E"];
+const SYMBOLS = [
+  "\u00AB", "\u00BB",  // « »
+  "\u278A", "\u278B", "\u278C", "\u278D", "\u278E",  // ➊ ➋ ➌ ➍ ➎
+  "\u3280", "\u3281", "\u3282", "\u3283", "\u3284", "\u3285", "\u3286", "\u3287", "\u3288",  // ㊀-㊈
+  "\u25CF", "\u2605", "\u25C6", "\u25A0", "\u25B2", "\u2666", "\u221E",  // ● ★ ◆ ■ ▲ ♦ ∞
+];
 
 export default function CardForm({ card, onChange, onLocalImageChange, saveImageData, onSaveImageDataChange, localImageData }) {
   const [expandedSections, setExpandedSections] = useState({

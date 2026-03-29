@@ -27,28 +27,32 @@ const MAX_STARS = 13;
 
 // ─── Text positions (at 1x) ─────────────────────────────────────────────────
 const NAME_X = 57;
-const NAME_Y_CENTER = 96;    // Was 88, moved down 8px
-const NAME_MAX_W = 640;
+const NAME_Y_CENTER = 96;
+const NAME_MAX_W = 612;       // Was 640, reduced 28px to avoid attribute symbol
 
 const SET_CODE_RIGHT_X = 735;
-const SET_CODE_Y = 868;      // Was 872, moved up 4px
+const SET_CODE_Y = 861;       // Centered between art bottom (832) and desc top (889)
 
 const TYPE_LINE_X = 73;
 const TYPE_LINE_Y = 915;
 const TYPE_LINE_MAX_W = 650;
 
 const EFFECT_X = 73;
-const EFFECT_Y_MONSTER = 920;  // After type line for monsters
-const EFFECT_Y_SPELLTRAP = 897; // Top of desc box for spell/trap (no type line)
+const EFFECT_Y_MONSTER = 920;
+const EFFECT_Y_SPELLTRAP = 897;
 const EFFECT_W = 668;
 
-// ATK/DEF: rendered as dynamic text, right-aligned in desc box
+// ATK/DEF: template labels + dynamic value text
 const STAT_VALUE_Y = 1105;
-const STAT_RIGHT_X = 741;     // Right edge of desc box (DESC_X + DESC_W)
-const STAT_GAP = 12;          // Gap between ATK section and DEF section
+const STAT_RIGHT_X = 741;     // Right edge of desc box
+const ATK_LABEL_RIGHT = 507;  // Right edge of "ATK/" in template
+const DEF_LABEL_LEFT = 600;   // Left edge of "DEF/" in template
+const DEF_LABEL_RIGHT = 672;  // Right edge of "DEF/" in template
+const STAT_VAL_GAP = 3;       // Gap between label and value
+const STAT_SECTION_GAP = 12;  // Gap between ATK section and DEF section
 
 const ARCHETYPE_RIGHT_X = 740;
-const ARCHETYPE_Y = 1143;     // Was 1148, moved up 5px
+const ARCHETYPE_Y_CENTER = 1131; // Centered between desc bottom (1111) and border (1150)
 
 // ─── Font families ───────────────────────────────────────────────────────────
 const FALLBACK_SERIF = "'Palatino Linotype', Palatino, Georgia, serif";
@@ -59,6 +63,7 @@ const FONT_EFFECT_TEXT = `'EffectText', ${FALLBACK_SERIF}`;// Matrix Book
 const FONT_STAT = `'CardType', ${FALLBACK_SERIF}`;        // Matrix Bold Small Caps (ATK/DEF)
 const FONT_SET_CODE = `'CardName', ${FALLBACK_SERIF}`;    // Matrix Regular Small Caps
 const FONT_ARCHETYPE = `'CardType', ${FALLBACK_SERIF}`;   // Matrix Bold Small Caps
+const FONT_BRACKET = FALLBACK_SERIF;                      // Fallback serif for [] brackets
 
 // ─── Dynamic font loading (gracefully handles missing fonts) ─────────────────
 let fontsLoaded = false;
@@ -196,7 +201,8 @@ export async function renderCard(canvas, card, options = {}) {
   // 6. Draw spell/trap type labels
   await drawSpellTrapType(ctx, card, scale);
 
-  // 7. Draw ATK/DEF divider (for monsters) — labels rendered as text in drawStatValues
+  // 7. Draw ATK/DEF divider and labels (for monsters)
+  // Labels are drawn with dynamic offset in drawStatValues for overflow handling
   if (isMonsterType(card.type) && !isSpellTrap(card.type)) {
     await drawTemplate(ctx, "ATKDEFDiv", scale);
   }
@@ -208,7 +214,7 @@ export async function renderCard(canvas, card, options = {}) {
   drawOverlay(ctx, card, cw, ch);
 
   // 10. Draw all text elements
-  drawAllText(ctx, card, scale);
+  await drawAllText(ctx, card, scale);
 }
 
 // ─── Template drawing ────────────────────────────────────────────────────────
@@ -400,7 +406,7 @@ function drawOverlay(ctx, card, cw, ch) {
 
 // ─── Text rendering ──────────────────────────────────────────────────────────
 
-function drawAllText(ctx, card, scale) {
+async function drawAllText(ctx, card, scale) {
   const s = scale;
 
   // Card name
@@ -417,7 +423,7 @@ function drawAllText(ctx, card, scale) {
 
   // ATK/DEF values
   if (isMonsterType(card.type) && !isSpellTrap(card.type)) {
-    drawStatValues(ctx, card, s);
+    await drawStatValues(ctx, card, s);
   }
 
   // Archetypes (right-aligned below description box)
@@ -431,7 +437,7 @@ function drawCardName(ctx, card, s) {
   const x = NAME_X * s;
   const yCenter = NAME_Y_CENTER * s;
   const maxW = NAME_MAX_W * s;
-  const fontSize = 50 * s;
+  const fontSize = 70 * s; // 40% bigger than 50
 
   ctx.save();
   ctx.fillStyle = card.nameColor || "#000000";
@@ -457,9 +463,9 @@ function drawSetCode(ctx, card, s) {
 
   ctx.save();
   ctx.fillStyle = "#111";
-  ctx.font = `${17 * s}px ${FONT_SET_CODE}`;
+  ctx.font = `${26 * s}px ${FONT_SET_CODE}`; // Was 17, +50%
   ctx.textAlign = "right";
-  ctx.textBaseline = "alphabetic";
+  ctx.textBaseline = "middle";
   ctx.fillText(setStr, SET_CODE_RIGHT_X * s, SET_CODE_Y * s);
   ctx.restore();
 }
@@ -469,27 +475,53 @@ function drawTypeLine(ctx, card, s) {
 
   const parts = card.typeLine?.length > 0 ? card.typeLine : [];
   if (parts.length === 0) return;
-  const typeText = `[${parts.join(" / ")}]`;
+  const innerText = parts.join(" / ");
 
   const x = TYPE_LINE_X * s;
   const y = TYPE_LINE_Y * s;
   const maxW = TYPE_LINE_MAX_W * s;
-  const fontSize = 26 * s;
+  const fontSize = 29 * s; // Was 26, +12%
 
   ctx.save();
   ctx.fillStyle = "#111";
-  ctx.font = `bold ${fontSize}px ${FONT_TYPE}`;
   ctx.textBaseline = "alphabetic";
 
-  const measured = ctx.measureText(typeText).width;
-  if (measured > maxW) {
-    // Squish horizontally instead of reducing font size
-    const scaleX = maxW / measured;
+  // Measure total width: brackets in fallback font + inner text in Matrix Bold
+  ctx.font = `bold ${fontSize}px ${FONT_BRACKET}`;
+  const bracketLW = ctx.measureText("[").width;
+  const bracketRW = ctx.measureText("]").width;
+  ctx.font = `bold ${fontSize}px ${FONT_TYPE}`;
+  const innerW = ctx.measureText(innerText).width;
+  const totalW = bracketLW + innerW + bracketRW;
+
+  if (totalW > maxW) {
+    // Squish horizontally
+    const scaleX = maxW / totalW;
     ctx.translate(x, y);
     ctx.scale(scaleX, 1);
-    ctx.fillText(typeText, 0, 0);
+    // Draw bracket in fallback font
+    ctx.font = `bold ${fontSize}px ${FONT_BRACKET}`;
+    ctx.fillText("[", 0, 0);
+    const bLW = ctx.measureText("[").width;
+    // Draw inner text in Matrix Bold
+    ctx.font = `bold ${fontSize}px ${FONT_TYPE}`;
+    ctx.fillText(innerText, bLW, 0);
+    // Draw closing bracket in fallback font
+    ctx.font = `bold ${fontSize}px ${FONT_BRACKET}`;
+    ctx.fillText("]", bLW + ctx.measureText(innerText).width, 0);
   } else {
-    ctx.fillText(typeText, x, y);
+    // Draw bracket in fallback font
+    let curX = x;
+    ctx.font = `bold ${fontSize}px ${FONT_BRACKET}`;
+    ctx.fillText("[", curX, y);
+    curX += bracketLW;
+    // Draw inner text in Matrix Bold
+    ctx.font = `bold ${fontSize}px ${FONT_TYPE}`;
+    ctx.fillText(innerText, curX, y);
+    curX += innerW;
+    // Draw closing bracket in fallback font
+    ctx.font = `bold ${fontSize}px ${FONT_BRACKET}`;
+    ctx.fillText("]", curX, y);
   }
   ctx.restore();
 }
@@ -523,46 +555,64 @@ function drawEffectText(ctx, card, s) {
   ctx.restore();
 }
 
-function drawStatValues(ctx, card, s) {
+async function drawStatValues(ctx, card, s) {
   const y = STAT_VALUE_Y * s;
   const rightEdge = STAT_RIGHT_X * s;
-  const gap = STAT_GAP * s;
-
-  // Font size: the template label chars are 22px tall at 1x,
-  // so we need a CSS font size that produces ~22px cap height.
-  // Cap height ≈ 0.7 * fontSize → fontSize ≈ 22 / 0.7 ≈ 31
-  const fontSize = 31 * s;
+  const fontSize = 31 * s; // Matches template label char height (22px)
 
   ctx.save();
   ctx.fillStyle = "#111";
   ctx.font = `bold ${fontSize}px ${FONT_STAT}`;
   ctx.textBaseline = "alphabetic";
+  ctx.textAlign = "left";
 
   const atkStr = card.atk != null ? String(card.atk) : "?";
   const isLinkType = isLink(card.type);
-  const defLabel = isLinkType ? "LINK/" : "DEF/";
   const defStr = isLinkType
     ? (card.linkRating != null ? String(card.linkRating) : "?")
     : (card.def != null ? String(card.def) : "?");
 
-  // Measure each piece
-  const defValW = ctx.measureText(defStr).width;
-  const defLabelW = ctx.measureText(defLabel).width;
   const atkValW = ctx.measureText(atkStr).width;
-  const atkLabelW = ctx.measureText("ATK/").width;
+  const defValW = ctx.measureText(defStr).width;
 
-  // Layout from right to left:
-  // [ATK/][atkVal]  [gap]  [DEF/][defVal]|rightEdge
-  // User-requested spacing adjustments (at 1x): DEF label -2px, ATK value -2px, ATK label -4px
+  // Calculate dynamic layout (right to left)
+  const valGap = STAT_VAL_GAP * s;
+  const secGap = STAT_SECTION_GAP * s;
+
+  // DEF value right-aligned at right edge
   const defValX = rightEdge - defValW;
-  const defLabelX = defValX - defLabelW - 2 * s;
-  const atkValX = defLabelX - gap - atkValW - 2 * s;
-  const atkLabelX = atkValX - atkLabelW - 4 * s;
+  // DEF label positioned before DEF value
+  const idealDefLabelRight = defValX - valGap;
+  const defLabelShift = Math.min(0, (idealDefLabelRight / s) - DEF_LABEL_RIGHT);
+  const actualDefLabelLeft = (DEF_LABEL_LEFT + defLabelShift) * s;
 
-  ctx.textAlign = "left";
-  ctx.fillText("ATK/", atkLabelX, y);
+  // ATK value positioned before DEF label with gap
+  const atkValX = actualDefLabelLeft - secGap - atkValW;
+  // ATK label positioned before ATK value
+  const idealAtkLabelRight = atkValX - valGap;
+  const atkLabelShift = Math.min(0, (idealAtkLabelRight / s) - ATK_LABEL_RIGHT);
+
+  // Draw ATKLabel template with shift
+  const atkLabelImg = await loadTemplateImage("ATKLabel");
+  if (atkLabelImg) {
+    ctx.imageSmoothingEnabled = (s === 1);
+    if (s !== 1) ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(atkLabelImg, atkLabelShift * s, 0, CARD_W * s, CARD_H * s);
+  }
+
+  // Draw DEFLabel or LINKLabel template with shift
+  const defLabelName = isLinkType ? "LINKLabel" : "DEFLabel";
+  const defLabelImg = await loadTemplateImage(defLabelName);
+  if (defLabelImg) {
+    if (s !== 1) ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(defLabelImg, defLabelShift * s, 0, CARD_W * s, CARD_H * s);
+  }
+
+  // Draw ATK value text
+  ctx.imageSmoothingEnabled = true;
   ctx.fillText(atkStr, atkValX, y);
-  ctx.fillText(defLabel, defLabelX, y);
+
+  // Draw DEF value text
   ctx.fillText(defStr, defValX, y);
 
   ctx.restore();
@@ -571,15 +621,15 @@ function drawStatValues(ctx, card, s) {
 function drawArchetypes(ctx, card, s) {
   if (!card.archetypes || card.archetypes.length === 0) return;
 
-  const text = card.archetypes.join("/");
+  const text = `\u00AB${card.archetypes.join("/")}\u00BB`; // «archetypes»
   const x = ARCHETYPE_RIGHT_X * s;
-  const y = ARCHETYPE_Y * s;
+  const y = ARCHETYPE_Y_CENTER * s;
 
   ctx.save();
   ctx.fillStyle = "#111";
-  ctx.font = `bold ${16 * s}px ${FONT_ARCHETYPE}`;
+  ctx.font = `bold ${18 * s}px ${FONT_ARCHETYPE}`; // Was 16, +12%
   ctx.textAlign = "right";
-  ctx.textBaseline = "alphabetic";
+  ctx.textBaseline = "middle"; // Vertically centered between desc bottom and border
   ctx.fillText(text, x, y);
   ctx.restore();
 }

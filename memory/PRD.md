@@ -44,9 +44,13 @@ Currently uploaded templates:
 
 ### Phase 3 - Font & Text Refinement (Complete - March 2026)
 - Installed Matrix font family: Regular Small Caps (name, set code), Bold Small Caps (type line, stats, archetypes), Book (effect text)
-- Card name and type line use horizontal squishing instead of font size reduction for long text
-- ATK/DEF rendered as dynamic text with Matrix Bold Small Caps, spacing offsets for label/value clarity
-- Stars position fine-tuned (Y=171), Spell/Trap effect text starts at top of desc box
+- Card name (70px) and type line (29px) use horizontal squishing instead of font size reduction for long text
+- Type line brackets `[]` rendered in serif fallback font (Matrix Bold doesn't have correct brackets)
+- ATK/DEF uses template labels with dynamic shift for overflow; values in Matrix Bold Small Caps (31px) matching label height
+- Set code 50% bigger (26px), vertically centered between art and desc box
+- Archetypes 12% bigger (18px), wrapped in «» brackets, vertically centered between desc box bottom and card border
+- Insert symbol buttons: «», ➊-➎, ㊀-㊈, plus original symbols
+- All position fine-tuning: stars Y=171, name Y=96, set code Y=861 (middle baseline), archetype Y=1131 (middle baseline)
 
 ## Backlog
 ### P1
