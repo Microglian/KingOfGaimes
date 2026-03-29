@@ -35,11 +35,12 @@ A web-based application for creating, editing, storing, searching, and exporting
 
 ## Template Files Status
 Currently uploaded templates:
-- Border.png, FrameNormal.png, FrameSpell.png, AttributeLight.png
-- LevelStarCropped.png, RankStarCropped.png
-- SpellTypeBase.png, STTypeQuick.png, LinkArrowDown.png
-- ATKDEFDiv.png, ATKLabel.png, DEFLabel.png
-- **User needs to add remaining templates via GitHub** (full list in README and templates/TEMPLATES_README.md)
+- Frames: FrameNormal, FrameSpell, FrameTrap, FrameXyz, FrameToken, FrameSkill
+- Other: Border, AttributeLight, LevelStarCropped, RankStarCropped
+- Labels: SpellTypeBase, SpellTypeUntyped, STTypeQuick
+- ATK/DEF: ATKDEFDiv, ATKLabel, DEFLabel
+- Arrows: LinkArrowDown
+- **User needs to add remaining**: FrameEffect, FrameFusion, FrameSynchro, FrameRitual, FrameLink, FrameRed, all remaining Attributes, Link Arrows, TrapTypeBase, TrapTypeUntyped, remaining STType symbols, LINKLabel
 
 ## Backlog
 ### P1

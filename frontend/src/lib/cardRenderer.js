@@ -20,33 +20,35 @@ const DESC_H = 222;
 
 // ─── Star row ────────────────────────────────────────────────────────────────
 const STAR_IMG_SIZE = 55;
-const STAR_Y_CENTER = 180;
-const STAR_ROW_LEFT = 86;    // Frame left edge (not art window)
-const STAR_ROW_WIDTH = 642;  // Frame width (813 - 86*2 ≈ 642)
+const STAR_Y_CENTER = 173;   // Was 180, moved up 7px
+const STAR_ROW_LEFT = 86;
+const STAR_ROW_WIDTH = 642;
 const MAX_STARS = 13;
 
 // ─── Text positions (at 1x) ─────────────────────────────────────────────────
 const NAME_X = 57;
-const NAME_Y_CENTER = 88;
+const NAME_Y_CENTER = 96;    // Was 88, moved down 8px
 const NAME_MAX_W = 640;
 
 const SET_CODE_RIGHT_X = 735;
-const SET_CODE_Y = 872;
+const SET_CODE_Y = 868;      // Was 872, moved up 4px
 
 const TYPE_LINE_X = 73;
 const TYPE_LINE_Y = 915;
 const TYPE_LINE_MAX_W = 650;
 
 const EFFECT_X = 73;
-const EFFECT_Y_START = 920;
+const EFFECT_Y_MONSTER = 920;  // After type line for monsters
+const EFFECT_Y_SPELLTRAP = 897; // Top of desc box for spell/trap (no type line)
 const EFFECT_W = 668;
 
-const ATK_VALUE_X = 510;  // Just after ATKLabel right edge (507)
-const DEF_VALUE_X = 675;  // Just after DEFLabel right edge (672)
-const STAT_VALUE_Y = 1105; // Aligned with label baseline (labels at Y 1083-1106)
+// ATK/DEF: rendered as dynamic text, right-aligned in desc box
+const STAT_VALUE_Y = 1105;
+const STAT_RIGHT_X = 741;     // Right edge of desc box (DESC_X + DESC_W)
+const STAT_GAP = 12;          // Gap between ATK section and DEF section
 
 const ARCHETYPE_RIGHT_X = 740;
-const ARCHETYPE_Y = 1148;
+const ARCHETYPE_Y = 1143;     // Was 1148, moved up 5px
 
 // ─── Font families ───────────────────────────────────────────────────────────
 const FALLBACK_SERIF = "'Palatino Linotype', Palatino, Georgia, serif";
@@ -192,15 +194,9 @@ export async function renderCard(canvas, card, options = {}) {
   // 6. Draw spell/trap type labels
   await drawSpellTrapType(ctx, card, scale);
 
-  // 7. Draw ATK/DEF divider and labels (for monsters)
+  // 7. Draw ATK/DEF divider (for monsters) — labels rendered as text in drawStatValues
   if (isMonsterType(card.type) && !isSpellTrap(card.type)) {
     await drawTemplate(ctx, "ATKDEFDiv", scale);
-    await drawTemplate(ctx, "ATKLabel", scale);
-    if (isLink(card.type)) {
-      await drawTemplate(ctx, "LINKLabel", scale);
-    } else {
-      await drawTemplate(ctx, "DEFLabel", scale);
-    }
   }
 
   // 8. Draw card border (on top of everything)
@@ -502,12 +498,15 @@ function drawEffectText(ctx, card, s) {
   if (!text) return;
 
   const x = EFFECT_X * s;
-  const yStart = EFFECT_Y_START * s;
   const maxW = EFFECT_W * s;
 
-  // Calculate available height: from effect start to stat area (or bottom of desc box)
   const isMon = isMonsterType(card.type) && !isSpellTrap(card.type);
-  const statReserve = isMon ? 50 * s : 10 * s;
+  const isSTrap = isSpellTrap(card.type);
+
+  // Spell/Trap: start at top of desc box (no type line, no ATK/DEF)
+  // Monster: start below type line, reserve space for ATK/DEF
+  const yStart = isSTrap ? EFFECT_Y_SPELLTRAP * s : EFFECT_Y_MONSTER * s;
+  const statReserve = isMon ? 50 * s : 5 * s;
   const maxH = (DESC_Y + DESC_H) * s - yStart - statReserve;
 
   const isNormalMonster = card.type === "normal_monster";
@@ -525,26 +524,44 @@ function drawEffectText(ctx, card, s) {
 
 function drawStatValues(ctx, card, s) {
   const y = STAT_VALUE_Y * s;
-  const fontSize = 24 * s;
+  const rightEdge = STAT_RIGHT_X * s;
+  const gap = STAT_GAP * s;
+
+  // Font size: the template label chars are 22px tall at 1x,
+  // so we need a CSS font size that produces ~22px cap height.
+  // Cap height ≈ 0.7 * fontSize → fontSize ≈ 22 / 0.7 ≈ 31
+  const fontSize = 31 * s;
 
   ctx.save();
   ctx.fillStyle = "#111";
   ctx.font = `bold ${fontSize}px ${FONT_STAT}`;
   ctx.textBaseline = "alphabetic";
-  ctx.textAlign = "left";
 
-  // ATK value (left-aligned, right after ATKLabel template text)
   const atkStr = card.atk != null ? String(card.atk) : "?";
-  ctx.fillText(atkStr, ATK_VALUE_X * s, y);
+  const isLinkType = isLink(card.type);
+  const defLabel = isLinkType ? "LINK/" : "DEF/";
+  const defStr = isLinkType
+    ? (card.linkRating != null ? String(card.linkRating) : "?")
+    : (card.def != null ? String(card.def) : "?");
 
-  // DEF or LINK value (left-aligned, right after DEFLabel/LINKLabel template text)
-  if (isLink(card.type)) {
-    const linkStr = card.linkRating != null ? String(card.linkRating) : "?";
-    ctx.fillText(linkStr, DEF_VALUE_X * s, y);
-  } else {
-    const defStr = card.def != null ? String(card.def) : "?";
-    ctx.fillText(defStr, DEF_VALUE_X * s, y);
-  }
+  // Measure each piece
+  const defValW = ctx.measureText(defStr).width;
+  const defLabelW = ctx.measureText(defLabel).width;
+  const atkValW = ctx.measureText(atkStr).width;
+  const atkLabelW = ctx.measureText("ATK/").width;
+
+  // Layout from right to left:
+  // [ATK/][atkVal]  [gap]  [DEF/][defVal]|rightEdge
+  const defValX = rightEdge - defValW;
+  const defLabelX = defValX - defLabelW;
+  const atkValX = defLabelX - gap - atkValW;
+  const atkLabelX = atkValX - atkLabelW;
+
+  ctx.textAlign = "left";
+  ctx.fillText("ATK/", atkLabelX, y);
+  ctx.fillText(atkStr, atkValX, y);
+  ctx.fillText(defLabel, defLabelX, y);
+  ctx.fillText(defStr, defValX, y);
 
   ctx.restore();
 }
