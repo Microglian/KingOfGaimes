@@ -42,6 +42,12 @@ Currently uploaded templates:
 - Arrows: LinkArrowDown
 - **User needs to add remaining**: FrameEffect, FrameFusion, FrameSynchro, FrameRitual, FrameLink, FrameRed, all remaining Attributes, Link Arrows, TrapTypeBase, TrapTypeUntyped, remaining STType symbols, LINKLabel
 
+### Phase 3 - Font & Text Refinement (Complete - March 2026)
+- Installed Matrix font family: Regular Small Caps (name, set code), Bold Small Caps (type line, stats, archetypes), Book (effect text)
+- Card name and type line use horizontal squishing instead of font size reduction for long text
+- ATK/DEF rendered as dynamic text with Matrix Bold Small Caps, spacing offsets for label/value clarity
+- Stars position fine-tuned (Y=171), Spell/Trap effect text starts at top of desc box
+
 ## Backlog
 ### P1
 - Drag-to-reposition image art on canvas (click-and-drag in art window)

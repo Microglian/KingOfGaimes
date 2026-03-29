@@ -20,7 +20,7 @@ const DESC_H = 222;
 
 // ─── Star row ────────────────────────────────────────────────────────────────
 const STAR_IMG_SIZE = 55;
-const STAR_Y_CENTER = 173;   // Was 180, moved up 7px
+const STAR_Y_CENTER = 171;   // Was 173, moved up 2px
 const STAR_ROW_LEFT = 86;
 const STAR_ROW_WIDTH = 642;
 const MAX_STARS = 13;
@@ -52,11 +52,13 @@ const ARCHETYPE_Y = 1143;     // Was 1148, moved up 5px
 
 // ─── Font families ───────────────────────────────────────────────────────────
 const FALLBACK_SERIF = "'Palatino Linotype', Palatino, Georgia, serif";
-const FONT_NAME = `'CardName', ${FALLBACK_SERIF}`;
-const FONT_TYPE = `'CardType', ${FALLBACK_SERIF}`;
-const FONT_NORMAL_TEXT = `'NormalText', ${FALLBACK_SERIF}`;
-const FONT_EFFECT_TEXT = `'EffectText', ${FALLBACK_SERIF}`;
-const FONT_STAT = `'CardType', ${FALLBACK_SERIF}`;
+const FONT_NAME = `'CardName', ${FALLBACK_SERIF}`;        // Matrix Regular Small Caps
+const FONT_TYPE = `'CardType', ${FALLBACK_SERIF}`;        // Matrix Bold Small Caps
+const FONT_NORMAL_TEXT = `'NormalText', ${FALLBACK_SERIF}`;// Matrix Book (italic for normal monsters)
+const FONT_EFFECT_TEXT = `'EffectText', ${FALLBACK_SERIF}`;// Matrix Book
+const FONT_STAT = `'CardType', ${FALLBACK_SERIF}`;        // Matrix Bold Small Caps (ATK/DEF)
+const FONT_SET_CODE = `'CardName', ${FALLBACK_SERIF}`;    // Matrix Regular Small Caps
+const FONT_ARCHETYPE = `'CardType', ${FALLBACK_SERIF}`;   // Matrix Bold Small Caps
 
 // ─── Dynamic font loading (gracefully handles missing fonts) ─────────────────
 let fontsLoaded = false;
@@ -429,21 +431,23 @@ function drawCardName(ctx, card, s) {
   const x = NAME_X * s;
   const yCenter = NAME_Y_CENTER * s;
   const maxW = NAME_MAX_W * s;
-  let fontSize = 50 * s;
+  const fontSize = 50 * s;
 
   ctx.save();
   ctx.fillStyle = card.nameColor || "#000000";
   ctx.textBaseline = "middle";
-  ctx.font = `bold ${fontSize}px ${FONT_NAME}`;
+  ctx.font = `${fontSize}px ${FONT_NAME}`;
 
-  // Shrink font if name is too wide
-  let measured = ctx.measureText(name).width;
+  const measured = ctx.measureText(name).width;
   if (measured > maxW) {
-    fontSize = Math.max(20 * s, fontSize * (maxW / measured));
-    ctx.font = `bold ${fontSize}px ${FONT_NAME}`;
+    // Squish horizontally instead of reducing font size
+    const scaleX = maxW / measured;
+    ctx.translate(x, yCenter);
+    ctx.scale(scaleX, 1);
+    ctx.fillText(name, 0, 0);
+  } else {
+    ctx.fillText(name, x, yCenter);
   }
-
-  ctx.fillText(name, x, yCenter, maxW);
   ctx.restore();
 }
 
@@ -453,7 +457,7 @@ function drawSetCode(ctx, card, s) {
 
   ctx.save();
   ctx.fillStyle = "#111";
-  ctx.font = `${17 * s}px ${FONT_EFFECT_TEXT}`;
+  ctx.font = `${17 * s}px ${FONT_SET_CODE}`;
   ctx.textAlign = "right";
   ctx.textBaseline = "alphabetic";
   ctx.fillText(setStr, SET_CODE_RIGHT_X * s, SET_CODE_Y * s);
@@ -461,35 +465,32 @@ function drawSetCode(ctx, card, s) {
 }
 
 function drawTypeLine(ctx, card, s) {
-  let typeText = "";
-  if (isSpellTrap(card.type)) {
-    // For spell/trap, the type is rendered via template images, not text
-    // But we could add the bracket text if no template is available
-    return;
-  }
+  if (isSpellTrap(card.type)) return;
 
-  // Monster type line: [Dragon/Xyz/Pendulum/Effect]
   const parts = card.typeLine?.length > 0 ? card.typeLine : [];
   if (parts.length === 0) return;
-  typeText = `[${parts.join(" / ")}]`;
+  const typeText = `[${parts.join(" / ")}]`;
 
   const x = TYPE_LINE_X * s;
   const y = TYPE_LINE_Y * s;
   const maxW = TYPE_LINE_MAX_W * s;
-  let fontSize = 26 * s;
+  const fontSize = 26 * s;
 
   ctx.save();
   ctx.fillStyle = "#111";
   ctx.font = `bold ${fontSize}px ${FONT_TYPE}`;
   ctx.textBaseline = "alphabetic";
 
-  // Shrink if too wide
   const measured = ctx.measureText(typeText).width;
   if (measured > maxW) {
-    fontSize = Math.max(12 * s, fontSize * (maxW / measured));
-    ctx.font = `bold ${fontSize}px ${FONT_TYPE}`;
+    // Squish horizontally instead of reducing font size
+    const scaleX = maxW / measured;
+    ctx.translate(x, y);
+    ctx.scale(scaleX, 1);
+    ctx.fillText(typeText, 0, 0);
+  } else {
+    ctx.fillText(typeText, x, y);
   }
-  ctx.fillText(typeText, x, y, maxW);
   ctx.restore();
 }
 
@@ -552,10 +553,11 @@ function drawStatValues(ctx, card, s) {
 
   // Layout from right to left:
   // [ATK/][atkVal]  [gap]  [DEF/][defVal]|rightEdge
+  // User-requested spacing adjustments (at 1x): DEF label -2px, ATK value -2px, ATK label -4px
   const defValX = rightEdge - defValW;
-  const defLabelX = defValX - defLabelW;
-  const atkValX = defLabelX - gap - atkValW;
-  const atkLabelX = atkValX - atkLabelW;
+  const defLabelX = defValX - defLabelW - 2 * s;
+  const atkValX = defLabelX - gap - atkValW - 2 * s;
+  const atkLabelX = atkValX - atkLabelW - 4 * s;
 
   ctx.textAlign = "left";
   ctx.fillText("ATK/", atkLabelX, y);
@@ -575,7 +577,7 @@ function drawArchetypes(ctx, card, s) {
 
   ctx.save();
   ctx.fillStyle = "#111";
-  ctx.font = `bold ${16 * s}px ${FONT_EFFECT_TEXT}`;
+  ctx.font = `bold ${16 * s}px ${FONT_ARCHETYPE}`;
   ctx.textAlign = "right";
   ctx.textBaseline = "alphabetic";
   ctx.fillText(text, x, y);
