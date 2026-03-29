@@ -50,7 +50,10 @@ Currently uploaded templates:
 - Set code 50% bigger (26px), vertically centered between art and desc box
 - Archetypes 12% bigger (18px), wrapped in «» brackets, vertically centered between desc box bottom and card border
 - Insert symbol buttons: «», ➊-➎, ㊀-㊈, plus original symbols
-- All position fine-tuning: stars Y=171, name Y=96, set code Y=861 (middle baseline), archetype Y=1131 (middle baseline)
+- All position fine-tuning: stars Y=171, name Y=89, set code Y=861 (middle baseline), archetype Y=1136 (middle baseline)
+- Skill cards treated like spell/trap: no type line, no stars, no ATK/DEF; draws SkillTypeUntyped template
+- ATK/DEF template labels (ATKLabel.png, DEFLabel.png) restored with dynamic left-shift for value overflow; value font 37px matching 22px cap height
+- isNoStatCard() helper groups spell/trap/skill for consistent rendering logic
 
 ## Backlog
 ### P1

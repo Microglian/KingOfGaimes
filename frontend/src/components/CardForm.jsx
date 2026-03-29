@@ -1,6 +1,6 @@
 import {
   CARD_TYPES, ATTRIBUTES, RARITIES, SPELL_TRAP_TYPES, OVERLAY_EFFECTS,
-  isMonsterType, isXyz, isLink, isSpellTrap,
+  isMonsterType, isXyz, isLink, isSpellTrap, isNoStatCard,
 } from "@/lib/constants";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
@@ -27,6 +27,7 @@ export default function CardForm({ card, onChange, onLocalImageChange, saveImage
 
   const isMon = isMonsterType(card.type);
   const isST = isSpellTrap(card.type);
+  const showStats = isMon && !isNoStatCard(card.type); // Hide stats for skill
   const isXyzType = isXyz(card.type);
   const isLinkType = isLink(card.type);
 
@@ -100,7 +101,7 @@ export default function CardForm({ card, onChange, onLocalImageChange, saveImage
                 </Select>
               </div>
             )}
-            {isMon && (
+            {showStats && (
               <div>
                 <label className="form-label">Type Line</label>
                 <TagInput value={card.typeLine} onChange={(v) => onChange("typeLine", v)} placeholder="e.g. Dragon, Effect..." />
@@ -113,7 +114,7 @@ export default function CardForm({ card, onChange, onLocalImageChange, saveImage
         <SectionHeader label="Stats" k="stats" expanded={expandedSections.stats} toggle={toggleSection} />
         {expandedSections.stats && (
           <div className="form-section space-y-3">
-            {isMon && !isXyzType && !isLinkType && (
+            {showStats && !isXyzType && !isLinkType && (
               <div>
                 <label className="form-label">Level</label>
                 <input type="number" value={card.level ?? ""} onChange={(e) => onChange("level", e.target.value ? parseInt(e.target.value) : null)}
@@ -140,7 +141,7 @@ export default function CardForm({ card, onChange, onLocalImageChange, saveImage
                 </div>
               </>
             )}
-            {isMon && (
+            {showStats && (
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="form-label">ATK</label>

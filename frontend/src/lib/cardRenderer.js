@@ -1,6 +1,6 @@
 import {
   FRAME_TEMPLATE_MAP, ATTRIBUTE_TEMPLATE_MAP, LINK_ARROW_TEMPLATE_MAP,
-  ST_TYPE_TEMPLATE_MAP, isMonsterType, isXyz, isLink, isSpellTrap,
+  ST_TYPE_TEMPLATE_MAP, isMonsterType, isXyz, isLink, isSpellTrap, isSkill, isNoStatCard,
 } from "./constants";
 
 // ─── Card dimensions (template native at 1x) ────────────────────────────────
@@ -27,7 +27,7 @@ const MAX_STARS = 13;
 
 // ─── Text positions (at 1x) ─────────────────────────────────────────────────
 const NAME_X = 57;
-const NAME_Y_CENTER = 96;
+const NAME_Y_CENTER = 89;     // Was 96, moved up 7px
 const NAME_MAX_W = 612;       // Was 640, reduced 28px to avoid attribute symbol
 
 const SET_CODE_RIGHT_X = 735;
@@ -52,7 +52,7 @@ const STAT_VAL_GAP = 3;       // Gap between label and value
 const STAT_SECTION_GAP = 12;  // Gap between ATK section and DEF section
 
 const ARCHETYPE_RIGHT_X = 740;
-const ARCHETYPE_Y_CENTER = 1131; // Centered between desc bottom (1111) and border (1150)
+const ARCHETYPE_Y_CENTER = 1136; // Centered between desc bottom (1111) and border (1150)
 
 // ─── Font families ───────────────────────────────────────────────────────────
 const FALLBACK_SERIF = "'Palatino Linotype', Palatino, Georgia, serif";
@@ -198,12 +198,11 @@ export async function renderCard(canvas, card, options = {}) {
     }
   }
 
-  // 6. Draw spell/trap type labels
-  await drawSpellTrapType(ctx, card, scale);
+  // 6. Draw spell/trap/skill type labels
+  await drawCardTypeLabel(ctx, card, scale);
 
-  // 7. Draw ATK/DEF divider and labels (for monsters)
-  // Labels are drawn with dynamic offset in drawStatValues for overflow handling
-  if (isMonsterType(card.type) && !isSpellTrap(card.type)) {
+  // 7. Draw ATK/DEF divider (for monsters only, not spell/trap/skill)
+  if (!isNoStatCard(card.type) && isMonsterType(card.type)) {
     await drawTemplate(ctx, "ATKDEFDiv", scale);
   }
 
@@ -302,8 +301,8 @@ function drawArtPlaceholder(ctx, scale, text) {
 // ─── Star drawing ────────────────────────────────────────────────────────────
 
 async function drawStars(ctx, card, scale) {
-  if (isSpellTrap(card.type)) return;
-  if (isLink(card.type)) return; // Link monsters don't have stars
+  if (isNoStatCard(card.type)) return; // No stars for spell/trap/skill
+  if (isLink(card.type)) return;
 
   const isXyzType = isXyz(card.type);
   const count = isXyzType ? Math.min(card.rank || 0, MAX_STARS) : Math.min(card.level || 0, MAX_STARS);
@@ -340,19 +339,23 @@ async function drawStars(ctx, card, scale) {
   ctx.restore();
 }
 
-// ─── Spell/Trap type ─────────────────────────────────────────────────────────
+// ─── Spell/Trap/Skill type labels ────────────────────────────────────────────
 
-async function drawSpellTrapType(ctx, card, scale) {
+async function drawCardTypeLabel(ctx, card, scale) {
+  // Skill cards: always use SkillTypeUntyped
+  if (isSkill(card.type)) {
+    await drawTemplate(ctx, "SkillTypeUntyped", scale);
+    return;
+  }
+
   if (!isSpellTrap(card.type)) return;
 
   const subtype = card.spellTrapType || "normal";
 
   if (subtype === "normal") {
-    // Normal Spell/Trap: use the untyped label
     const untypedName = card.type === "spell" ? "SpellTypeUntyped" : "TrapTypeUntyped";
     await drawTemplate(ctx, untypedName, scale);
   } else {
-    // Typed Spell/Trap: draw the base label + type symbol
     const baseName = card.type === "spell" ? "SpellTypeBase" : "TrapTypeBase";
     await drawTemplate(ctx, baseName, scale);
 
@@ -421,8 +424,8 @@ async function drawAllText(ctx, card, scale) {
   // Effect/description text
   drawEffectText(ctx, card, s);
 
-  // ATK/DEF values
-  if (isMonsterType(card.type) && !isSpellTrap(card.type)) {
+  // ATK/DEF values (only for monsters, not spell/trap/skill)
+  if (!isNoStatCard(card.type) && isMonsterType(card.type)) {
     await drawStatValues(ctx, card, s);
   }
 
@@ -471,7 +474,7 @@ function drawSetCode(ctx, card, s) {
 }
 
 function drawTypeLine(ctx, card, s) {
-  if (isSpellTrap(card.type)) return;
+  if (isNoStatCard(card.type)) return; // No type line for spell/trap/skill
 
   const parts = card.typeLine?.length > 0 ? card.typeLine : [];
   if (parts.length === 0) return;
@@ -533,12 +536,12 @@ function drawEffectText(ctx, card, s) {
   const x = EFFECT_X * s;
   const maxW = EFFECT_W * s;
 
-  const isMon = isMonsterType(card.type) && !isSpellTrap(card.type);
-  const isSTrap = isSpellTrap(card.type);
+  const isMon = !isNoStatCard(card.type) && isMonsterType(card.type);
+  const isSTrapOrSkill = isNoStatCard(card.type);
 
-  // Spell/Trap: start at top of desc box (no type line, no ATK/DEF)
+  // Spell/Trap/Skill: start at top of desc box (no type line, no ATK/DEF)
   // Monster: start below type line, reserve space for ATK/DEF
-  const yStart = isSTrap ? EFFECT_Y_SPELLTRAP * s : EFFECT_Y_MONSTER * s;
+  const yStart = isSTrapOrSkill ? EFFECT_Y_SPELLTRAP * s : EFFECT_Y_MONSTER * s;
   const statReserve = isMon ? 50 * s : 5 * s;
   const maxH = (DESC_Y + DESC_H) * s - yStart - statReserve;
 
@@ -558,7 +561,7 @@ function drawEffectText(ctx, card, s) {
 async function drawStatValues(ctx, card, s) {
   const y = STAT_VALUE_Y * s;
   const rightEdge = STAT_RIGHT_X * s;
-  const fontSize = 31 * s; // Matches template label char height (22px)
+  const fontSize = 37 * s; // Produces ~22px cap height to match template labels
 
   ctx.save();
   ctx.fillStyle = "#111";

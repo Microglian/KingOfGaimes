@@ -135,6 +135,15 @@ export function isSpellTrap(type) {
   return type === "spell" || type === "trap";
 }
 
+export function isSkill(type) {
+  return type === "skill";
+}
+
+// Cards without type line, stars, or ATK/DEF
+export function isNoStatCard(type) {
+  return isSpellTrap(type) || isSkill(type);
+}
+
 export function getDefaultCard() {
   return {
     name: "",
