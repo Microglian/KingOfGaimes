@@ -33,14 +33,14 @@ A web-based application for creating, editing, storing, searching, and exporting
 - .env.example files for easy local setup
 - README fully updated with template/font setup instructions
 
-## Template Files Status
-Currently uploaded templates:
-- Frames: FrameNormal, FrameSpell, FrameTrap, FrameXyz, FrameToken, FrameSkill
-- Other: Border, AttributeLight, LevelStarCropped, RankStarCropped
-- Labels: SpellTypeBase, SpellTypeUntyped, STTypeQuick
-- ATK/DEF: ATKDEFDiv, ATKLabel, DEFLabel
-- Arrows: LinkArrowDown
-- **User needs to add remaining**: FrameEffect, FrameFusion, FrameSynchro, FrameRitual, FrameLink, FrameRed, all remaining Attributes, Link Arrows, TrapTypeBase, TrapTypeUntyped, remaining STType symbols, LINKLabel
+### Phase 4 - Recent Cards Sidebar (Complete - March 2026)
+- Widescreen (≥1440px) shows 3-column layout with recent cards panel on right
+- Lists recently saved/updated/save-as-new cards with type-colored names, set code, rarity mark, and archetype tags
+- Clickable entries navigate to that card in the editor (SPA navigation, no page reload)
+- Session-persistent list (max 30 cards), most recent first
+
+## Template Files Status — ALL COMPLETE
+All 49 template PNG files uploaded to frontend/public/templates/
 
 ### Phase 3 - Font & Text Refinement (Complete - March 2026)
 - Installed Matrix font family: Regular Small Caps (name, set code), Bold Small Caps (type line, stats, archetypes), Book (effect text)

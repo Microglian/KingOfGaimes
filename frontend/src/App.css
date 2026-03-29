@@ -34,9 +34,31 @@
   min-height: calc(100vh - 56px);
 }
 
+/* Widescreen: show recent cards panel */
+@media (min-width: 1440px) {
+  .editor-layout {
+    grid-template-columns: 380px 1fr 380px;
+  }
+}
+
 @media (max-width: 1024px) {
   .editor-layout {
     grid-template-columns: 1fr;
+  }
+}
+
+/* Recent Cards Panel (right sidebar) */
+.recent-panel {
+  background: #08131F;
+  border-left: 1px solid #162A3F;
+  overflow-y: auto;
+  max-height: calc(100vh - 56px);
+  display: none;
+}
+
+@media (min-width: 1440px) {
+  .recent-panel {
+    display: block;
   }
 }
 

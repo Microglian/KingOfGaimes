@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import CardForm from "@/components/CardForm";
 import CardCanvas from "@/components/CardCanvas";
+import RecentCards, { addRecentCard } from "@/components/RecentCards";
 import { getDefaultCard } from "@/lib/constants";
 import { createCard, updateCard, getCard, getProxyImageUrl } from "@/lib/api";
 import { renderCard, clearImageCache, generateThumbnail } from "@/lib/cardRenderer";
@@ -21,6 +22,7 @@ export default function CardEditorPage() {
   const [saveImageData, setSaveImageData] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [fullscreenPreview, setFullscreenPreview] = useState(null);
+  const [recentRefreshKey, setRecentRefreshKey] = useState(0);
   const canvasRef = useRef(null);
   const inactivityTimer = useRef(null);
   const autoRenderRef = useRef(autoRender);
@@ -84,10 +86,14 @@ export default function CardEditorPage() {
 
       if (cardId && !asNew) {
         await updateCard(cardId, saveData);
+        addRecentCard({ ...saveData, id: cardId });
+        setRecentRefreshKey((k) => k + 1);
         toast.success("Card updated");
       } else {
         const created = await createCard(saveData);
         setCardId(created.id);
+        addRecentCard({ ...saveData, id: created.id });
+        setRecentRefreshKey((k) => k + 1);
         toast.success(asNew ? "Saved as new card" : "Card saved");
         navigate(`/?id=${created.id}`, { replace: true });
       }
@@ -275,6 +281,9 @@ export default function CardEditorPage() {
           <p className="text-[0.6rem] text-[#4A6478] relative z-10">Click card to view full resolution</p>
         </div>
       </div>
+
+      {/* Recent Cards - visible on widescreen (handled by CSS grid) */}
+      <RecentCards refreshKey={recentRefreshKey} />
 
       {/* Fullscreen high-res preview */}
       {fullscreenPreview && (
