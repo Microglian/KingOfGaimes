@@ -32,6 +32,22 @@ const NAME_MAX_W = 612;       // Was 640, reduced 28px to avoid attribute symbol
 
 const SET_CODE_RIGHT_X = 735;
 const SET_CODE_Y = 861;       // Centered between art bottom (832) and desc top (889)
+const RARITY_LEFT_X = 73;     // Left-aligned, opposite side of set code
+
+// Link monsters: move set code/rarity inward to avoid link arrow overlap
+const LINK_SET_CODE_RIGHT_X = 683;
+const LINK_RARITY_LEFT_X = 130;
+
+// Rarity mark styling
+const RARITY_MARKS = {
+  uncommon:         { text: "U",   color: "#228B22" },
+  rare:             { text: "R",   color: "#2266CC" },
+  super_rare:       { text: "SR",  color: "#8844CC" },
+  ultra_rare:       { text: "UR",  color: "#DAA520" },
+  secret_rare:      { text: "ScR", color: "#CC2222" },
+  ultimate_rare:    { text: "UtR", color: "#FF69B4" },
+  holographic_rare: { text: "HLR", color: "#00CED1" },
+};
 
 const TYPE_LINE_X = 73;
 const TYPE_LINE_Y = 915;
@@ -462,15 +478,36 @@ function drawCardName(ctx, card, s) {
 
 function drawSetCode(ctx, card, s) {
   const setStr = [card.setCode, card.setNumber].filter(Boolean).join("-");
-  if (!setStr) return;
+  const isLinkType = isLink(card.type);
+  const y = SET_CODE_Y * s;
+  const fontSize = 26 * s;
 
-  ctx.save();
-  ctx.fillStyle = "#111";
-  ctx.font = `${26 * s}px ${FONT_SET_CODE}`; // Was 17, +50%
-  ctx.textAlign = "right";
-  ctx.textBaseline = "middle";
-  ctx.fillText(setStr, SET_CODE_RIGHT_X * s, SET_CODE_Y * s);
-  ctx.restore();
+  // Positions depend on card type (link monsters use inset positions)
+  const codeRightX = (isLinkType ? LINK_SET_CODE_RIGHT_X : SET_CODE_RIGHT_X) * s;
+  const rarityLeftX = (isLinkType ? LINK_RARITY_LEFT_X : RARITY_LEFT_X) * s;
+
+  // Draw set code (right-aligned)
+  if (setStr) {
+    ctx.save();
+    ctx.fillStyle = "#111";
+    ctx.font = `${fontSize}px ${FONT_SET_CODE}`;
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
+    ctx.fillText(setStr, codeRightX, y);
+    ctx.restore();
+  }
+
+  // Draw rarity mark (left-aligned, opposite side)
+  const rarityInfo = RARITY_MARKS[card.rarity];
+  if (rarityInfo) {
+    ctx.save();
+    ctx.fillStyle = rarityInfo.color;
+    ctx.font = `bold ${fontSize}px ${FONT_SET_CODE}`;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillText(rarityInfo.text, rarityLeftX, y);
+    ctx.restore();
+  }
 }
 
 function drawTypeLine(ctx, card, s) {

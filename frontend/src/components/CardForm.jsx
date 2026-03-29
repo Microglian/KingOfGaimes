@@ -48,12 +48,17 @@ export default function CardForm({ card, onChange, onLocalImageChange, saveImage
       if (val === "xyz_monster") {
         onChange("level", null); onChange("linkRating", null); onChange("linkArrows", []);
         if (!card.rank) onChange("rank", 4);
+        onChange("nameColor", "#FFFFFF");
       } else if (val === "link_monster") {
         onChange("level", null); onChange("rank", null); onChange("def", null);
         if (!card.linkRating) onChange("linkRating", 2);
+        onChange("nameColor", "#FFFFFF");
       } else {
         onChange("rank", null); onChange("linkRating", null); onChange("linkArrows", []);
         if (!card.level) onChange("level", 4);
+        if (card.nameColor === "#FFFFFF" || card.nameColor === "#ffffff") {
+          onChange("nameColor", "#000000");
+        }
       }
     }
   };
