@@ -28,12 +28,16 @@ const CardCanvas = forwardRef(function CardCanvas({ card, renderTrigger, localIm
 
   const { width, height } = getCardDimensions();
 
+  // Display the canvas at a manageable CSS size (the canvas internal resolution is 813x1185)
+  const displayWidth = 420;
+  const displayHeight = Math.round(displayWidth * (height / width));
+
   return (
     <div className="card-canvas-wrapper" data-testid="card-canvas-wrapper">
       <canvas
         ref={canvasRef}
         data-testid="card-preview-canvas"
-        style={{ width: `${width}px`, height: `${height}px`, borderRadius: "8px" }}
+        style={{ width: `${displayWidth}px`, height: `${displayHeight}px`, borderRadius: "8px" }}
       />
     </div>
   );

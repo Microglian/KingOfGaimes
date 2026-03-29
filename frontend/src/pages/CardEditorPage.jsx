@@ -103,7 +103,7 @@ export default function CardEditorPage() {
   }, [navigate]);
 
   const handleExportPng = useCallback((scale = 1) => {
-    // For standard: use existing canvas (fast, synchronous)
+    // For standard (1x = 813x1185): use existing canvas
     if (scale === 1) {
       const canvas = canvasRef.current;
       if (!canvas) { toast.error("No canvas available"); return; }
@@ -115,17 +115,17 @@ export default function CardEditorPage() {
       }
       return;
     }
-    // High-res: render to a new canvas at specified scale
-    toast.info(`Rendering at ${scale}x...`);
+    // Print-ready (2x = 1626x2370): render to a new canvas
+    toast.info("Rendering print-ready image...");
     const exportCanvas = document.createElement("canvas");
     const proxyUrl = (card.imageUrl && !card.imageUrl.startsWith("file:") && !card.imageUrl.startsWith("data:"))
       ? getProxyImageUrl(card.imageUrl) : "";
-    renderCard(exportCanvas, card, { scale, proxyUrl, localImageData: localImageDataRef.current })
+    renderCard(exportCanvas, card, { scale: 2, proxyUrl, localImageData: localImageDataRef.current })
       .then(() => {
         try {
           const dataUrl = exportCanvas.toDataURL("image/png");
-          triggerDownload(dataUrl, `${card.name || "card"}_${scale}x.png`);
-          toast.success(`Exported at ${scale}x resolution`);
+          triggerDownload(dataUrl, `${card.name || "card"}_print.png`);
+          toast.success("Exported print-ready image (1626x2370)");
         } catch {
           toast.error("PNG export failed");
         }
@@ -171,7 +171,7 @@ export default function CardEditorPage() {
     const exportCanvas = document.createElement("canvas");
     const proxyUrl = (card.imageUrl && !card.imageUrl.startsWith("file:") && !card.imageUrl.startsWith("data:"))
       ? getProxyImageUrl(card.imageUrl) : "";
-    renderCard(exportCanvas, card, { scale: 3, proxyUrl, localImageData: localImageDataRef.current })
+    renderCard(exportCanvas, card, { scale: 2, proxyUrl, localImageData: localImageDataRef.current })
       .then(() => {
         try {
           const dataUrl = exportCanvas.toDataURL("image/png");
@@ -211,18 +211,14 @@ export default function CardEditorPage() {
               <ChevronDown size={10} />
             </button>
             {showExportMenu && (
-              <div className="absolute z-50 top-full left-0 mt-1 rounded-md border border-[#162A3F] py-1 min-w-[160px]" style={{ background: '#0D1D2E' }}>
+              <div className="absolute z-50 top-full left-0 mt-1 rounded-md border border-[#162A3F] py-1 min-w-[180px]" style={{ background: '#0D1D2E' }}>
                 <button onClick={() => { handleExportPng(1); setShowExportMenu(false); }}
                   className="w-full text-left px-3 py-1.5 text-xs text-[#E2E8F0] hover:bg-[#162A3F]" data-testid="export-png-1x">
-                  Standard (420x614)
+                  Standard (813x1185)
                 </button>
                 <button onClick={() => { handleExportPng(2); setShowExportMenu(false); }}
-                  className="w-full text-left px-3 py-1.5 text-xs text-[#E2E8F0] hover:bg-[#162A3F]" data-testid="export-png-2x">
-                  High Res 2x (840x1228)
-                </button>
-                <button onClick={() => { handleExportPng(3); setShowExportMenu(false); }}
-                  className="w-full text-left px-3 py-1.5 text-xs text-[#00E5FF] hover:bg-[#162A3F] font-semibold" data-testid="export-png-3x">
-                  Print Ready 3x (1260x1842)
+                  className="w-full text-left px-3 py-1.5 text-xs text-[#00E5FF] hover:bg-[#162A3F] font-semibold" data-testid="export-png-2x">
+                  Print Ready (1626x2370)
                 </button>
               </div>
             )}

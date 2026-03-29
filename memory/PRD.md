@@ -1,39 +1,48 @@
-# Yu-Gi-Oh Card Creator - PRD
+# Card Forge - PRD
 
-## Architecture
-- Frontend: React + Shadcn UI + HTML5 Canvas + Tailwind CSS
-- Backend: FastAPI + Motor (async MongoDB)
-- Database: MongoDB, No Authentication
+## Original Problem Statement
+A web-based application for creating, editing, storing, searching, and exporting custom Yu-Gi-Oh-style cards with full customization. Uses an HTML5 Canvas-based template compositing engine to replicate exact card layouts from PNG template images.
 
-## Implemented Features
+## Core Architecture
+- **Frontend**: React 18 + Tailwind CSS + Shadcn/UI + HTML5 Canvas template compositing
+- **Backend**: FastAPI + Motor (async MongoDB) + Pydantic
+- **Database**: MongoDB
 
-### MVP
-- Full CRUD API, search, import/export, image proxy
-- Card Editor with form + live canvas preview
-- Canvas renderer: type-specific frames, attributes, level/rank/link indicators
-- Collection page with search/filter/sort/delete
-- Dark theme (blues/teals/aquas)
+## What's Been Implemented
 
-### Iteration 1 - Bug Fixes
-- Image loading, PNG/JSON exports, auto-render toggle, collection filters
+### Phase 1 - MVP (Complete)
+- Full CRUD backend API with optimized search/pagination
+- Card editor with live canvas preview
+- Image upload/URL loading with zoom/offset controls
+- Collection gallery with search, filters, pagination
+- PNG/JSON export and import
+- Fullscreen high-res preview
+- Dark mode theme (blues/teals/aquas)
+- Documentation (README, FUNCTIONAL_SPEC)
 
-### Iteration 2 - Features
-- Save as New, card layout matching reference, image memory management,
-  font size adjuster, thumbnails, per-card export, re-upload hints
+### Phase 2 - Template Rendering (Complete - March 2026)
+- Complete rewrite of cardRenderer.js to template-based compositing
+- Cards composed by layering PNG template images (813x1185) for authentic appearance
+- Layer order: user art → frame → attribute → stars → link arrows → spell/trap labels → ATK/DEF → border → overlays → text
+- Art window: 613x613 square at (100,219), rendered at 1226x1226 for print quality
+- Export: Standard 813x1185, Print-Ready 1626x2370 (2x nearest-neighbour templates)
+- Dynamic font loading: CardName, CardType, NormalText, EffectText with serif fallbacks
+- Added card types: Red Monster, Token
+- Added spell subtype: Fusion
+- Template infrastructure: frontend/public/templates/ and frontend/public/fonts/
+- .env.example files for easy local setup
+- README fully updated with template/font setup instructions
 
-### Iteration 3 - Performance & Print
-- Fast collection loading (imageUrl stripped from list queries, 25KB/139ms for 11 cards)
-- Searchable archetype/set code filter dropdowns (meta API endpoints)
-- High-res PNG export (Standard/2x/3x print-ready)
-- Larger collection thumbnails (168x245)
-
-### Iteration 4 - Docs Fix
-- Added `.env.example` template files for backend and frontend (`.env` is gitignored)
-- Updated README setup instructions to use `cp .env.example .env` flow
-- Added `!*.env.example` exception to `.gitignore`
+## Template Files Status
+Only a subset of templates are currently uploaded:
+- Border.png, FrameNormal.png, AttributeLight.png, LevelStarCropped.png, RankStarCropped.png
+- SpellTypeBase.png, STTypeQuick.png, LinkArrowDown.png
+- **User needs to add remaining templates via GitHub** (full list in README and templates/TEMPLATES_README.md)
 
 ## Backlog
 ### P1
-- Drag-to-reposition image on canvas
+- Drag-to-reposition image art on canvas (click-and-drag in art window)
 ### P2
-- Batch operations, card templates, undo/redo
+- Card template presets for common archetypes
+- Batch operations (bulk delete/export)
+- Undo/redo in editor

@@ -27,15 +27,18 @@ export default function CardForm({ card, onChange, onLocalImageChange, saveImage
 
   const handleTypeChange = (val) => {
     onChange("type", val);
-    if (isSpellTrap(val)) {
+    if (isSpellTrap(val) || val === "skill") {
       onChange("level", null); onChange("rank", null); onChange("linkRating", null);
       onChange("linkArrows", []); onChange("atk", null); onChange("def", null);
-      if (!card.spellTrapType) onChange("spellTrapType", "normal");
-      if (val === "spell") onChange("attribute", "spell");
-      if (val === "trap") onChange("attribute", "trap");
+      if (isSpellTrap(val)) {
+        if (!card.spellTrapType) onChange("spellTrapType", "normal");
+        if (val === "spell") onChange("attribute", "spell");
+        if (val === "trap") onChange("attribute", "trap");
+      }
+      if (val === "skill") onChange("attribute", "skill");
     } else {
       onChange("spellTrapType", null);
-      if (card.attribute === "spell" || card.attribute === "trap") onChange("attribute", "light");
+      if (["spell", "trap", "skill"].includes(card.attribute)) onChange("attribute", "light");
       if (val === "xyz_monster") {
         onChange("level", null); onChange("linkRating", null); onChange("linkArrows", []);
         if (!card.rank) onChange("rank", 4);

@@ -6,9 +6,10 @@ export const CARD_TYPES = [
   { value: "synchro_monster", label: "Synchro Monster" },
   { value: "xyz_monster", label: "Xyz Monster" },
   { value: "link_monster", label: "Link Monster" },
+  { value: "red_monster", label: "Red Monster" },
+  { value: "token_monster", label: "Token" },
   { value: "spell", label: "Spell" },
   { value: "trap", label: "Trap" },
-  { value: "deckmaster", label: "Deckmaster" },
   { value: "skill", label: "Skill" },
 ];
 
@@ -32,6 +33,7 @@ export const SPELL_TRAP_TYPES = [
   { value: "field", label: "Field" },
   { value: "equip", label: "Equip" },
   { value: "ritual", label: "Ritual" },
+  { value: "fusion", label: "Fusion" },
   { value: "counter", label: "Counter" },
 ];
 
@@ -67,49 +69,58 @@ export const OVERLAY_EFFECTS = [
   { value: "holographic", label: "Holographic Shader" },
 ];
 
-export const FRAME_COLORS = {
-  normal_monster: "#C9B458",
-  effect_monster: "#C46628",
-  ritual_monster: "#3B6BA5",
-  fusion_monster: "#7B4F9D",
-  synchro_monster: "#CCCCCC",
-  xyz_monster: "#1A1A1A",
-  link_monster: "#1B6BA5",
-  spell: "#1D9E74",
-  trap: "#BC3A7C",
-  deckmaster: "#4A3B6B",
-  skill: "#4169AA",
+// Template file mappings
+export const FRAME_TEMPLATE_MAP = {
+  normal_monster: "FrameNormal",
+  effect_monster: "FrameEffect",
+  ritual_monster: "FrameRitual",
+  fusion_monster: "FrameFusion",
+  synchro_monster: "FrameSynchro",
+  xyz_monster: "FrameXyz",
+  link_monster: "FrameLink",
+  red_monster: "FrameRed",
+  token_monster: "FrameToken",
+  spell: "FrameSpell",
+  trap: "FrameTrap",
+  skill: "FrameSkill",
 };
 
-export const FRAME_BORDER_COLORS = {
-  normal_monster: "#8B7D3C",
-  effect_monster: "#8B4513",
-  ritual_monster: "#264573",
-  fusion_monster: "#553570",
-  synchro_monster: "#999999",
-  xyz_monster: "#333333",
-  link_monster: "#134D73",
-  spell: "#146B4F",
-  trap: "#852956",
-  deckmaster: "#332A4B",
-  skill: "#2D4A76",
+export const ATTRIBUTE_TEMPLATE_MAP = {
+  divine: "AttributeDivine",
+  light: "AttributeLight",
+  dark: "AttributeDark",
+  wind: "AttributeWind",
+  water: "AttributeWater",
+  fire: "AttributeFire",
+  earth: "AttributeEarth",
+  spell: "AttributeSpell",
+  trap: "AttributeTrap",
+  skill: "AttributeSkill",
 };
 
-export const ATTRIBUTE_COLORS = {
-  light: "#FFD700",
-  dark: "#8B00FF",
-  fire: "#FF4500",
-  water: "#1E90FF",
-  earth: "#8B6914",
-  wind: "#32CD32",
-  divine: "#FFD700",
-  spell: "#1D9E74",
-  trap: "#BC3A7C",
-  skill: "#4169AA",
+export const LINK_ARROW_TEMPLATE_MAP = {
+  top: "LinkArrowUp",
+  top_right: "LinkArrowUpRight",
+  right: "LinkArrowRight",
+  bottom_right: "LinkArrowRightDown",
+  bottom: "LinkArrowDown",
+  bottom_left: "LinkArrowDownLeft",
+  left: "LinkArrowLeft",
+  top_left: "LinkArrowLeftUp",
+};
+
+export const ST_TYPE_TEMPLATE_MAP = {
+  continuous: "STTypeContinuous",
+  equip: "STTypeEquip",
+  field: "STTypeField",
+  ritual: "STTypeRitual",
+  fusion: "STTypeFusion",
+  quick_play: "STTypeQuick",
+  counter: "STTypeCounter",
 };
 
 export function isMonsterType(type) {
-  return type.includes("monster") || type === "deckmaster";
+  return type && type.includes("monster");
 }
 
 export function isXyz(type) {

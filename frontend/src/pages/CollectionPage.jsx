@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { searchCards, deleteCard, exportAllCards, importCards, getProxyImageUrl, getArchetypes, getSetCodes } from "@/lib/api";
-import { CARD_TYPES, ATTRIBUTES, RARITIES, FRAME_COLORS } from "@/lib/constants";
+import { CARD_TYPES, ATTRIBUTES, RARITIES } from "@/lib/constants";
 import { renderCard } from "@/lib/cardRenderer";
 import { toast } from "sonner";
 import { Search, Trash2, Edit, Download, Upload, X, SlidersHorizontal, FileJson, Image as ImageIcon } from "lucide-react";
@@ -288,7 +288,15 @@ function FilterSelect({ label, value, onChange, options, allLabel, testId }) {
 function CollectionCard({ card, onEdit, onDelete, onExportJson, onExportPng }) {
   const canvasRef = useRef(null);
   const rendered = useRef(false);
-  const frameColor = FRAME_COLORS[card.type] || "#555";
+
+  // Simple color mapping for the card type badge
+  const typeColors = {
+    normal_monster: "#C9B458", effect_monster: "#C46628", ritual_monster: "#3B6BA5",
+    fusion_monster: "#7B4F9D", synchro_monster: "#CCCCCC", xyz_monster: "#555",
+    link_monster: "#1B6BA5", red_monster: "#CC3333", token_monster: "#888",
+    spell: "#1D9E74", trap: "#BC3A7C", skill: "#4169AA",
+  };
+  const frameColor = typeColors[card.type] || "#555";
 
   useEffect(() => {
     if (!canvasRef.current || rendered.current) return;
@@ -306,8 +314,17 @@ function CollectionCard({ card, onEdit, onDelete, onExportJson, onExportPng }) {
       };
       img.src = card.thumbnail;
     } else {
-      // No thumbnail, render at small scale (no image data available from list endpoint)
-      renderCard(canvasRef.current, card, { scale: 0.4 }).catch(() => {});
+      // No thumbnail, render at 1x then draw scaled down on the display canvas
+      const tempCanvas = document.createElement("canvas");
+      renderCard(tempCanvas, card, { scale: 1 }).then(() => {
+        const ctx = canvasRef.current?.getContext("2d");
+        if (!ctx) return;
+        canvasRef.current.width = 168;
+        canvasRef.current.height = 245;
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
+        ctx.drawImage(tempCanvas, 0, 0, 168, 245);
+      }).catch(() => {});
     }
   }, [card]);
 
