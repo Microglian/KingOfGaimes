@@ -621,19 +621,24 @@ async function drawStatValues(ctx, card, s) {
   const atkValW = ctx.measureText(atkStr).width;
   const defValW = ctx.measureText(defStr).width;
 
+  // Pad short values (< 4 digits) with one character width of right margin
+  const padW = ctx.measureText("0").width;
+  const defPad = defStr.length < 4 ? padW : 0;
+  const atkPad = atkStr.length < 4 ? padW : 0;
+
   // Calculate dynamic layout (right to left)
   const valGap = STAT_VAL_GAP * s;
   const secGap = STAT_SECTION_GAP * s;
 
-  // DEF value right-aligned at right edge
-  const defValX = rightEdge - defValW;
+  // DEF value right-aligned at right edge (with padding for short values)
+  const defValX = rightEdge - defValW - defPad;
   // DEF label positioned before DEF value
   const idealDefLabelRight = defValX - valGap;
   const defLabelShift = Math.min(0, (idealDefLabelRight / s) - DEF_LABEL_RIGHT);
   const actualDefLabelLeft = (DEF_LABEL_LEFT + defLabelShift) * s;
 
-  // ATK value positioned before DEF label with gap
-  const atkValX = actualDefLabelLeft - secGap - atkValW;
+  // ATK value positioned before DEF label with gap (with padding for short values)
+  const atkValX = actualDefLabelLeft - secGap - atkValW - atkPad;
   // ATK label positioned before ATK value
   const idealAtkLabelRight = atkValX - valGap;
   const atkLabelShift = Math.min(0, (idealAtkLabelRight / s) - ATK_LABEL_RIGHT);
