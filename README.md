@@ -36,7 +36,7 @@ card-forge/
 ├── backend/
 │   ├── server.py              # FastAPI application (all API routes)
 │   ├── requirements.txt       # Python dependencies
-│   └── .env                   # Backend environment variables
+│   └── .env.example           # Backend environment variables template (copy to .env)
 ├── frontend/
 │   ├── src/
 │   │   ├── App.js             # Main React app with routing
@@ -59,7 +59,7 @@ card-forge/
 │   │       └── cardRenderer.js      # HTML5 Canvas rendering engine
 │   ├── package.json
 │   ├── tailwind.config.js
-│   └── .env                   # Frontend environment variables
+│   └── .env.example           # Frontend environment variables template (copy to .env)
 └── README.md
 ```
 
@@ -125,7 +125,12 @@ pip install fastapi uvicorn motor python-dotenv pydantic httpx
 
 **Configure environment variables:**
 
-Edit `backend/.env`:
+Copy the example file and edit as needed:
+```bash
+cp .env.example .env
+```
+
+Default values in `.env.example`:
 ```
 MONGO_URL="mongodb://localhost:27017"
 DB_NAME="cardforge"
@@ -162,7 +167,12 @@ yarn install
 
 **Configure environment variables:**
 
-Edit `frontend/.env`:
+Copy the example file and edit as needed:
+```bash
+cp .env.example .env
+```
+
+Default value in `.env.example`:
 ```
 REACT_APP_BACKEND_URL=http://localhost:8001
 ```
@@ -263,7 +273,7 @@ All endpoints are prefixed with `/api`.
 **Backend won't start:**
 - Check MongoDB is running: `mongosh --eval "db.runCommand({ ping: 1 })"`
 - Ensure port 8001 is free: `lsof -i :8001`
-- Check `backend/.env` exists and has correct `MONGO_URL`
+- Check `backend/.env` exists and has correct `MONGO_URL` (copy from `.env.example` if missing)
 
 **Frontend won't connect to backend:**
 - Verify `REACT_APP_BACKEND_URL` in `frontend/.env` matches your backend URL

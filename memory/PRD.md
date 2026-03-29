@@ -27,9 +27,13 @@
 - High-res PNG export (Standard/2x/3x print-ready)
 - Larger collection thumbnails (168x245)
 
+### Iteration 4 - Docs Fix
+- Added `.env.example` template files for backend and frontend (`.env` is gitignored)
+- Updated README setup instructions to use `cp .env.example .env` flow
+- Added `!*.env.example` exception to `.gitignore`
+
 ## Backlog
 ### P1
 - Drag-to-reposition image on canvas
-- Pagination for large collections
 ### P2
 - Batch operations, card templates, undo/redo
