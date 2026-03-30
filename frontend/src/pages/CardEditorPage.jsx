@@ -6,6 +6,7 @@ import RecentCards, { addRecentCard } from "@/components/RecentCards";
 import { getDefaultCard } from "@/lib/constants";
 import { createCard, updateCard, getCard, getProxyImageUrl } from "@/lib/api";
 import { renderCard, clearImageCache, generateThumbnail } from "@/lib/cardRenderer";
+import { markDownloaded, clearDownloaded } from "@/lib/downloadTracker";
 import { toast } from "sonner";
 import { Download, Save, Copy, RotateCcw, FileJson, Upload, ChevronDown } from "lucide-react";
 
@@ -69,6 +70,18 @@ export default function CardEditorPage() {
     }
   }, []);
 
+  const handleClearImage = useCallback(() => {
+    setLocalImageData(null);
+    localImageDataRef.current = null;
+    clearImageCache();
+    setCard((prev) => ({ ...prev, imageUrl: "" }));
+    if (autoRenderRef.current) {
+      clearTimeout(inactivityTimer.current);
+      inactivityTimer.current = setTimeout(() => setRenderTrigger((t) => t + 1), 400);
+    }
+  }, []);
+
+
   const handleRender = useCallback(() => setRenderTrigger((t) => t + 1), []);
 
   const doSave = useCallback(async (asNew) => {
@@ -86,12 +99,14 @@ export default function CardEditorPage() {
 
       if (cardId && !asNew) {
         await updateCard(cardId, saveData);
+        clearDownloaded(cardId);
         addRecentCard({ ...saveData, id: cardId });
         setRecentRefreshKey((k) => k + 1);
         toast.success("Card updated");
       } else {
         const created = await createCard(saveData);
         setCardId(created.id);
+        clearDownloaded(created.id);
         addRecentCard({ ...saveData, id: created.id });
         setRecentRefreshKey((k) => k + 1);
         toast.success(asNew ? "Saved as new card" : "Card saved");
@@ -114,19 +129,18 @@ export default function CardEditorPage() {
   }, [navigate]);
 
   const handleExportPng = useCallback((scale = 1) => {
-    // For standard (1x = 813x1185): use existing canvas
     if (scale === 1) {
       const canvas = canvasRef.current;
       if (!canvas) { toast.error("No canvas available"); return; }
       try {
         const dataUrl = canvas.toDataURL("image/png");
         triggerDownload(dataUrl, `${card.name || "card"}.png`);
+        if (cardId) markDownloaded(cardId);
       } catch {
         toast.error("PNG export failed (canvas may be tainted by cross-origin image)");
       }
       return;
     }
-    // Print-ready (2x = 1626x2370): render to a new canvas
     toast.info("Rendering print-ready image...");
     const exportCanvas = document.createElement("canvas");
     const proxyUrl = (card.imageUrl && !card.imageUrl.startsWith("file:") && !card.imageUrl.startsWith("data:"))
@@ -136,12 +150,13 @@ export default function CardEditorPage() {
         try {
           const dataUrl = exportCanvas.toDataURL("image/png");
           triggerDownload(dataUrl, `${card.name || "card"}_print.png`);
+          if (cardId) markDownloaded(cardId);
           toast.success("Exported print-ready image (1626x2370)");
         } catch {
           toast.error("PNG export failed");
         }
       }).catch(() => toast.error("Render failed"));
-  }, [card]);
+  }, [card, cardId]);
 
   const handleExportJson = useCallback(() => {
     const exportCard = { ...card };
@@ -198,53 +213,56 @@ export default function CardEditorPage() {
   return (
     <div className="editor-layout" data-testid="editor-layout">
       <div className="form-panel" data-testid="form-panel">
-        {/* Action bar */}
-        <div className="flex flex-wrap items-center gap-2 p-3 border-b border-[#162A3F]">
-          <button onClick={() => doSave(false)} disabled={saving}
-            className="btn-cyan flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs" data-testid="save-card-btn">
-            <Save size={14} /> {saving ? "Saving..." : cardId ? "Update" : "Save"}
-          </button>
-          {cardId && (
-            <button onClick={() => doSave(true)} disabled={saving}
-              className="btn-outline-dark flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs" data-testid="save-as-new-btn"
-              style={{ borderColor: '#00C9A7', color: '#00C9A7' }}>
-              <Copy size={14} /> Save as New
+        {/* Fixed action bar */}
+        <div className="form-panel-actions">
+          <div className="flex flex-wrap items-center gap-2 p-3">
+            <button onClick={() => doSave(false)} disabled={saving}
+              className="btn-cyan flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs" data-testid="save-card-btn">
+              <Save size={14} /> {saving ? "Saving..." : cardId ? "Update" : "Save"}
             </button>
-          )}
-          <button onClick={handleNew}
-            className="btn-outline-dark flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs" data-testid="new-card-btn">
-            <RotateCcw size={14} /> New
-          </button>
-          <div className="relative">
-            <button onClick={() => setShowExportMenu(!showExportMenu)}
-              className="btn-outline-dark flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs" data-testid="export-png-btn">
-              <Download size={14} /> PNG
-              <ChevronDown size={10} />
-            </button>
-            {showExportMenu && (
-              <div className="absolute z-50 top-full left-0 mt-1 rounded-md border border-[#162A3F] py-1 min-w-[180px]" style={{ background: '#0D1D2E' }}>
-                <button onClick={() => { handleExportPng(1); setShowExportMenu(false); }}
-                  className="w-full text-left px-3 py-1.5 text-xs text-[#E2E8F0] hover:bg-[#162A3F]" data-testid="export-png-1x">
-                  Standard (813x1185)
-                </button>
-                <button onClick={() => { handleExportPng(2); setShowExportMenu(false); }}
-                  className="w-full text-left px-3 py-1.5 text-xs text-[#00E5FF] hover:bg-[#162A3F] font-semibold" data-testid="export-png-2x">
-                  Print Ready (1626x2370)
-                </button>
-              </div>
+            {cardId && (
+              <button onClick={() => doSave(true)} disabled={saving}
+                className="btn-outline-dark flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs" data-testid="save-as-new-btn"
+                style={{ borderColor: '#00C9A7', color: '#00C9A7' }}>
+                <Copy size={14} /> Save as New
+              </button>
             )}
+            <button onClick={handleNew}
+              className="btn-outline-dark flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs" data-testid="new-card-btn">
+              <RotateCcw size={14} /> New
+            </button>
+            <div className="relative">
+              <button onClick={() => setShowExportMenu(!showExportMenu)}
+                className="btn-outline-dark flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs" data-testid="export-png-btn">
+                <Download size={14} /> PNG
+                <ChevronDown size={10} />
+              </button>
+              {showExportMenu && (
+                <div className="absolute z-50 top-full left-0 mt-1 rounded-md border border-[#162A3F] py-1 min-w-[180px]" style={{ background: '#0D1D2E' }}>
+                  <button onClick={() => { handleExportPng(1); setShowExportMenu(false); }}
+                    className="w-full text-left px-3 py-1.5 text-xs text-[#E2E8F0] hover:bg-[#162A3F]" data-testid="export-png-1x">
+                    Standard (813x1185)
+                  </button>
+                  <button onClick={() => { handleExportPng(2); setShowExportMenu(false); }}
+                    className="w-full text-left px-3 py-1.5 text-xs text-[#00E5FF] hover:bg-[#162A3F] font-semibold" data-testid="export-png-2x">
+                    Print Ready (1626x2370)
+                  </button>
+                </div>
+              )}
+            </div>
+            <button onClick={handleExportJson}
+              className="btn-outline-dark flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs" data-testid="export-json-btn">
+              <FileJson size={14} /> JSON
+            </button>
+            <label className="btn-outline-dark flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs cursor-pointer" data-testid="import-json-btn">
+              <Upload size={14} /> Import
+              <input type="file" accept=".json" onChange={handleImportJson} className="hidden" />
+            </label>
           </div>
-          <button onClick={handleExportJson}
-            className="btn-outline-dark flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs" data-testid="export-json-btn">
-            <FileJson size={14} /> JSON
-          </button>
-          <label className="btn-outline-dark flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs cursor-pointer" data-testid="import-json-btn">
-            <Upload size={14} /> Import
-            <input type="file" accept=".json" onChange={handleImportJson} className="hidden" />
-          </label>
         </div>
 
-        {showReuploadHint && (
+        {/* Scrollable form content */}
+        <div className="form-panel-scroll">{showReuploadHint && (
           <div className="mx-4 mt-3 p-2 rounded text-xs" style={{ background: 'rgba(0,229,255,0.08)', border: '1px solid rgba(0,229,255,0.2)', color: '#8BA0B2' }} data-testid="reupload-hint">
             Image file reference: <span className="text-[#00E5FF] font-mono">{card.imageUrl.replace("file:", "")}</span>
             <br/>Re-upload the file to see the image.
@@ -258,7 +276,9 @@ export default function CardEditorPage() {
           saveImageData={saveImageData}
           onSaveImageDataChange={setSaveImageData}
           localImageData={localImageData}
+          onClearImage={handleClearImage}
         />
+        </div>{/* end form-panel-scroll */}
       </div>
 
       <div className="preview-panel" data-testid="preview-panel">

@@ -1,9 +1,9 @@
 import { Slider } from "@/components/ui/slider";
 import { Image as ImageIcon } from "lucide-react";
 
-export default function ImageControls({ card, onChange, onLocalImageChange, saveImageData, onSaveImageDataChange, localImageData }) {
+export default function ImageControls({ card, onChange, onLocalImageChange, saveImageData, onSaveImageDataChange, localImageData, onClearImage }) {
   const hasLocalImage = !!localImageData;
-  const isFileRef = card.imageUrl?.startsWith("file:");
+  const hasImage = hasLocalImage || (card.imageUrl && !card.imageUrl.startsWith("file:") && card.imageUrl.length > 0);
 
   return (
     <div className="space-y-3" data-testid="image-controls">
@@ -12,7 +12,7 @@ export default function ImageControls({ card, onChange, onLocalImageChange, save
         <label className="form-label">Image URL</label>
         <input
           type="text"
-          value={isFileRef ? "" : (card.imageUrl || "")}
+          value={(hasLocalImage || card.imageUrl?.startsWith("file:")) ? "" : (card.imageUrl || "")}
           onChange={(e) => onChange("imageUrl", e.target.value)}
           placeholder="https://example.com/image.png"
           className="form-input-dark w-full h-8 px-3 rounded-md text-sm border"
@@ -49,6 +49,15 @@ export default function ImageControls({ card, onChange, onLocalImageChange, save
             <span className="text-[0.65rem] text-[#00C9A7]">Image loaded in memory</span>
           )}
         </div>
+        {hasImage && onClearImage && (
+          <button
+            onClick={onClearImage}
+            className="text-[0.65rem] text-[#CC4444] hover:text-[#FF5555] mt-1"
+            data-testid="clear-image-btn"
+          >
+            Clear image
+          </button>
+        )}
       </div>
 
       {/* Save image data checkbox */}

@@ -4,7 +4,6 @@ import {
 } from "@/lib/constants";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import LinkArrowSelector from "@/components/LinkArrowSelector";
 import TagInput from "@/components/TagInput";
 import ImageControls from "@/components/ImageControls";
@@ -18,7 +17,7 @@ const SYMBOLS = [
   "\u25CF", "\u2605", "\u25C6", "\u25A0", "\u25B2", "\u2666", "\u221E",  // ● ★ ◆ ■ ▲ ♦ ∞
 ];
 
-export default function CardForm({ card, onChange, onLocalImageChange, saveImageData, onSaveImageDataChange, localImageData }) {
+export default function CardForm({ card, onChange, onLocalImageChange, saveImageData, onSaveImageDataChange, localImageData, onClearImage }) {
   const [expandedSections, setExpandedSections] = useState({
     basic: true, stats: true, image: true, text: true, visual: false, meta: false,
   });
@@ -64,7 +63,7 @@ export default function CardForm({ card, onChange, onLocalImageChange, saveImage
   };
 
   return (
-    <ScrollArea className="h-[calc(100vh-56px-57px)]" data-testid="card-form">
+    <div data-testid="card-form">
       <div>
         {/* Basic Info */}
         <SectionHeader label="Basic Info" k="basic" expanded={expandedSections.basic} toggle={toggleSection} />
@@ -170,7 +169,7 @@ export default function CardForm({ card, onChange, onLocalImageChange, saveImage
         {expandedSections.image && (
           <div className="form-section">
             <ImageControls card={card} onChange={onChange} onLocalImageChange={onLocalImageChange}
-              saveImageData={saveImageData} onSaveImageDataChange={onSaveImageDataChange} localImageData={localImageData} />
+              saveImageData={saveImageData} onSaveImageDataChange={onSaveImageDataChange} localImageData={localImageData} onClearImage={onClearImage} />
           </div>
         )}
 
@@ -276,7 +275,7 @@ export default function CardForm({ card, onChange, onLocalImageChange, saveImage
           </div>
         )}
       </div>
-    </ScrollArea>
+    </div>
   );
 }
 

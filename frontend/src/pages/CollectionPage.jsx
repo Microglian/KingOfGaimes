@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { searchCards, deleteCard, exportAllCards, importCards, getProxyImageUrl, getArchetypes, getSetCodes } from "@/lib/api";
+import { searchCards, deleteCard, exportAllCards, importCards, getProxyImageUrl, getArchetypes, getSetCodes, getCard } from "@/lib/api";
 import { CARD_TYPES, ATTRIBUTES, RARITIES } from "@/lib/constants";
 import { renderCard } from "@/lib/cardRenderer";
+import { markDownloaded, isDownloaded } from "@/lib/downloadTracker";
 import { toast } from "sonner";
-import { Search, Trash2, Edit, Download, Upload, X, SlidersHorizontal, FileJson, Image as ImageIcon } from "lucide-react";
+import { Search, Trash2, Edit, Download, Upload, X, SlidersHorizontal, FileJson, Image as ImageIcon, CheckCircle } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import SearchableDropdown from "@/components/SearchableDropdown";
@@ -99,20 +100,27 @@ export default function CollectionPage() {
     } catch { toast.error("Export failed"); }
   };
 
-  const handleExportCardJson = (card) => {
-    const { thumbnail, ...rest } = card;
-    const blob = new Blob([JSON.stringify(rest, null, 2)], { type: "application/json" });
-    triggerBlobDownload(blob, `${card.name || "card"}.json`);
+  const handleExportCardJson = async (card) => {
+    try {
+      // Fetch full card data (list endpoint strips imageUrl for performance)
+      const fullCard = await getCard(card.id);
+      const { thumbnail, ...rest } = fullCard;
+      const blob = new Blob([JSON.stringify(rest, null, 2)], { type: "application/json" });
+      triggerBlobDownload(blob, `${card.name || "card"}.json`);
+    } catch { toast.error("Export failed"); }
   };
 
   const handleExportCardPng = async (card) => {
     try {
+      // Fetch full card data (list endpoint strips imageUrl for performance)
+      const fullCard = await getCard(card.id);
       const c = document.createElement("canvas");
-      const proxyUrl = (card.imageUrl && !card.imageUrl.startsWith("file:") && !card.imageUrl.startsWith("data:"))
-        ? getProxyImageUrl(card.imageUrl) : "";
-      await renderCard(c, card, { scale: 2, proxyUrl });
+      const proxyUrl = (fullCard.imageUrl && !fullCard.imageUrl.startsWith("file:") && !fullCard.imageUrl.startsWith("data:"))
+        ? getProxyImageUrl(fullCard.imageUrl) : "";
+      await renderCard(c, fullCard, { scale: 2, proxyUrl });
       const dataUrl = c.toDataURL("image/png");
       triggerDownload(dataUrl, `${card.name || "card"}.png`);
+      markDownloaded(card.id);
     } catch { toast.error("Export failed"); }
   };
 
@@ -330,18 +338,30 @@ function CollectionCard({ card, onEdit, onDelete, onExportJson, onExportPng }) {
 
   return (
     <div className="collection-card" data-testid={`collection-card-${card.id}`}>
-      <div className="collection-card-preview" onClick={() => onEdit(card)}>
+      <div className="collection-card-preview relative" onClick={() => onEdit(card)}>
         <canvas ref={canvasRef} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+        {isDownloaded(card.id) && (
+          <div className="absolute top-1 right-1" data-testid={`downloaded-tick-${card.id}`}>
+            <CheckCircle size={18} className="text-green-500 drop-shadow-md" fill="#08131F" />
+          </div>
+        )}
       </div>
       <div className="collection-card-info">
         <p className="text-sm font-semibold text-[#E2E8F0] truncate" style={{ fontFamily: 'Outfit' }}>
           {card.name || "Untitled"}
         </p>
         <div className="flex items-center justify-between mt-2">
-          <span className="text-[0.6rem] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded"
-            style={{ background: frameColor + "22", color: frameColor, border: `1px solid ${frameColor}44` }}>
-            {card.type?.replace(/_/g, " ")}
-          </span>
+          {card.archetypes?.length > 0 ? (
+            <span className="text-[0.6rem] font-bold tracking-wider px-1.5 py-0.5 rounded truncate max-w-[60%] text-[#8BA0B2]"
+              style={{ background: '#162A3F', border: '1px solid #1E3A50' }}>
+              {card.archetypes[0]}
+            </span>
+          ) : (
+            <span className="text-[0.6rem] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded"
+              style={{ background: frameColor + "22", color: frameColor, border: `1px solid ${frameColor}44` }}>
+              {card.type?.replace(/_/g, " ")}
+            </span>
+          )}
           <div className="flex items-center gap-0.5">
             <button onClick={() => onExportPng(card)} className="p-1 text-[#8BA0B2] hover:text-[#00E5FF] transition-colors" title="Export PNG" data-testid={`export-png-${card.id}`}>
               <ImageIcon size={13} />

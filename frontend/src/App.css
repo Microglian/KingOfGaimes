@@ -66,8 +66,21 @@
 .form-panel {
   background: #08131F;
   border-right: 1px solid #162A3F;
-  overflow-y: auto;
   max-height: calc(100vh - 56px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.form-panel-actions {
+  flex-shrink: 0;
+  border-bottom: 1px solid #162A3F;
+}
+
+.form-panel-scroll {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .form-section {
